@@ -17,7 +17,7 @@ export const login = async (
     res.cookie("parkpro_token", result.token, {
       httpOnly: true,
       secure: environment === "production",
-      sameSite: "lax",
+      sameSite: environment === "production" ? "none" : "lax",
       path: "/",
     });
 

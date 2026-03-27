@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createBooking,
+  getPricingConfig,
   getBookingByTracking,
   calculatePrice,
 } from "../controllers/booking.controller";
@@ -17,6 +18,9 @@ router.post(
   validate(createBookingSchema),
   createBooking,
 );
+
+// GET /api/bookings/price-per-hour - Get price config
+router.get("/pricePerHour", attachBusinessId, getPricingConfig);
 
 // GET /api/bookings/price — Calculate price preview
 router.get("/price", attachBusinessId, calculatePrice);

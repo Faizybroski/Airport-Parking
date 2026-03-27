@@ -21,6 +21,20 @@ export const createBooking = async (
   }
 };
 
+export const getPricingConfig = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const businessId = (_req as any).businessId;
+    const config = await pricingService.getConfig(businessId);
+    res.json({ success: true, data: config.pricePerHour });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getBookingByTracking = async (
   req: Request,
   res: Response,

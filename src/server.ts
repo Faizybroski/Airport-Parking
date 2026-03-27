@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import cookieParser from "cookie-parser";
 import { config } from "./config";
 import { connectDB } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
@@ -22,6 +23,7 @@ app.use(
 );
 app.use(morgan("dev"));
 app.use(express.json());
+app.use(cookieParser());
 
 // Routes
 app.use("/api/bookings", bookingRoutes);

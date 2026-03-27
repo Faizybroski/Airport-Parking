@@ -12,9 +12,11 @@ export const login = async (
     const { email, password } = req.body;
     const result = await authService.login(email, password);
 
+    const environment = process.env.environment;
+
     res.cookie("parkpro_token", result.token, {
       httpOnly: true,
-      secure: false, // true in production (HTTPS)
+      secure: environment === "production",
       sameSite: "lax",
       path: "/",
     });

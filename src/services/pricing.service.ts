@@ -108,20 +108,18 @@ class PricingService {
   /**
    * Calculate overtime price
    */
-  async calculateOvertime(
-    businessId: string,
+  calculateOvertime(
     bookedStartTime: Date,
     bookedEndTime: Date,
     actualExitTime: Date,
     originalPrice: number,
-  ): Promise<OvertimeCalculation> {
-    const config = await this.getConfig(businessId);
-
+    pricePerHour: number,
+  ): OvertimeCalculation {
     const bookedHours = calculateHours(bookedStartTime, bookedEndTime);
     const actualHours = calculateHours(bookedStartTime, actualExitTime);
-    const overtimeHours = Math.max(0, actualHours - bookedHours);
+    const overtimeHours = calculateHours(bookedEndTime, actualExitTime);
     const overtimePrice =
-      Math.round(overtimeHours * config.pricePerHour * 100) / 100;
+      Math.round(overtimeHours * pricePerHour * 100) / 100;
     const newTotalPrice =
       Math.round((originalPrice + overtimePrice) * 100) / 100;
 

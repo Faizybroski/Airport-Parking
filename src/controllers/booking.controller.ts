@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { bookingService } from "../services/booking.service";
 import { pricingService } from "../services/pricing.service";
+import { Business } from "../models/Business";
 import AppError from "../utils/AppError";
 
 export const createBooking = async (
@@ -10,24 +11,20 @@ export const createBooking = async (
 ): Promise<void> => {
   try {
     const businessId = req.businessId!;
-    console.log("businessId", businessId);
     const booking = await bookingService.createBooking(businessId, req.body);
-    res.status(201).json({
-      success: true,
-      data: booking,
-    });
+    res.status(201).json({ success: true, data: booking });
   } catch (error) {
     next(error);
   }
 };
 
 export const getPricingConfig = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const businessId = (_req as any).businessId;
+    const businessId = req.businessId!;
     const config = await pricingService.getConfig(businessId);
     res.json({ success: true, data: config.pricePerHour });
   } catch (error) {
@@ -44,9 +41,8 @@ export const getBookingByTracking = async (
     const businessId = req.businessId!;
     const { trackingNumber } = req.params;
     if (!trackingNumber || Array.isArray(trackingNumber)) {
-      return next(new AppError("Invalid id", 400));
+      return next(new AppError("Invalid tracking number", 400));
     }
-
     const booking = await bookingService.getByTrackingNumber(
       businessId,
       trackingNumber,
@@ -79,6 +75,25 @@ export const calculatePrice = async (
       new Date(endTime as string),
     );
     res.json({ success: true, data: priceCalc });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/bookings/status — public check: is booking open? */
+export const getBookingStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const businessId = req.businessId!;
+    const business = await Business.findById(businessId);
+    if (!business) return next(new AppError("Business not found", 404));
+    res.json({
+      success: true,
+      data: { bookingEnabled: business.bookingEnabled !== false },
+    });
   } catch (error) {
     next(error);
   }

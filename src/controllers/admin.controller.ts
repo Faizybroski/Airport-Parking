@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { bookingService } from "../services/booking.service";
+import { Business } from "../models/Business";
 import { BookingStatus } from "../models/Booking";
 import AppError from "../utils/AppError";
 
@@ -10,7 +11,6 @@ export const getDashboard = async (
 ): Promise<void> => {
   try {
     const businessId = _req.businessId!;
-
     const stats = await bookingService.getDashboardStats(businessId);
     res.json({ success: true, data: stats });
   } catch (error) {
@@ -28,7 +28,7 @@ export const getAllBookings = async (
     const businessId = req.businessId!;
 
     const result = await bookingService.getAllBookings({
-      businessId: businessId,
+      businessId,
       status: status as BookingStatus | undefined,
       page: page ? parseInt(page as string, 10) : 1,
       limit: limit ? parseInt(limit as string, 10) : 20,
@@ -47,7 +47,6 @@ export const updateBookingStatus = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-
     if (!id || Array.isArray(id)) {
       return next(new AppError("Invalid id", 400));
     }
@@ -74,7 +73,6 @@ export const exportBookings = async (
   try {
     const { status } = req.query;
     const businessId = req.businessId!;
-
     const csv = await bookingService.exportBookingsCSV(
       businessId,
       status as BookingStatus | undefined,
@@ -82,6 +80,46 @@ export const exportBookings = async (
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=bookings.csv");
     res.send(csv);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /admin/booking-toggle — return current bookingEnabled state */
+export const getBookingToggle = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const businessId = req.businessId!;
+    const business = await Business.findById(businessId);
+    if (!business) return next(new AppError("Business not found", 404));
+    res.json({ success: true, data: { bookingEnabled: business.bookingEnabled !== false } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** PATCH /admin/booking-toggle — flip bookingEnabled */
+export const setBookingToggle = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const businessId = req.businessId!;
+    const { bookingEnabled } = req.body;
+    if (typeof bookingEnabled !== "boolean") {
+      return next(new AppError("bookingEnabled must be a boolean", 400));
+    }
+    const business = await Business.findByIdAndUpdate(
+      businessId,
+      { bookingEnabled },
+      { new: true },
+    );
+    if (!business) return next(new AppError("Business not found", 404));
+    res.json({ success: true, data: { bookingEnabled: business.bookingEnabled } });
   } catch (error) {
     next(error);
   }

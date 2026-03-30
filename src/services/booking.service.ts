@@ -1,24 +1,32 @@
 import { Booking, IBooking, BookingStatus } from "../models/Booking";
-import { slotService } from "./slot.service";
+import { Business } from "../models/Business";
 import { pricingService } from "./pricing.service";
 import { emailService } from "./email.service";
-import { generateTrackingNumber, calculateHours } from "../utils/helpers";
+import { generateTrackingNumber } from "../utils/helpers";
 import { AppError } from "../middleware/errorHandler";
 import { CreateBookingInput } from "../validators";
-import { ObjectId, Types } from "mongoose";
+import { getBookingStatusTransitionError } from "../utils/bookingLifecycle";
 
 class BookingService {
-  /**
-   * Create a new booking
-   */
   async createBooking(
     businessId: string,
     data: CreateBookingInput,
   ): Promise<IBooking> {
+    // Check if booking is enabled for this business
+    const business = await Business.findById(businessId);
+    if (!business) {
+      throw new AppError("Business not found", 404);
+    }
+    if (business.bookingEnabled === false) {
+      throw new AppError(
+        "Bookings are currently disabled. Please try again later.",
+        403,
+      );
+    }
+
     const startTime = new Date(data.bookedStartTime);
     const endTime = new Date(data.bookedEndTime);
 
-    // Calculate price
     const priceCalc = await pricingService.calculatePrice(
       businessId,
       startTime,
@@ -33,9 +41,8 @@ class BookingService {
       exists = !!(await Booking.findOne({ trackingNumber }));
     } while (exists);
 
-    // Create booking first (without slot, to get the ID)
     const booking = new Booking({
-      businessId: businessId,
+      businessId,
       userName: data.userName,
       userEmail: data.userEmail,
       userPhone: data.userPhone,
@@ -57,27 +64,15 @@ class BookingService {
       discountPercent: priceCalc.discountPercent,
       overtimeHours: 0,
       overtimePrice: 0,
-      // Temporary slot values, will be updated
-      slotId: new Types.ObjectId(),
-      slotNumber: 0,
     });
-
-    // Assign a slot
-    const slot = await slotService.assignSlot(booking._id as Types.ObjectId);
-    booking.slotId = slot._id as Types.ObjectId;
-    booking.slotNumber = slot.slotNumber;
 
     await booking.save();
 
-    // Send confirmation email (non-blocking)
     emailService.sendBookingConfirmation(booking).catch(console.error);
 
     return booking;
   }
 
-  /**
-   * Get booking by tracking number (public)
-   */
   async getByTrackingNumber(
     businessId: string,
     trackingNumber: string,
@@ -94,9 +89,6 @@ class BookingService {
     return booking;
   }
 
-  /**
-   * Get all bookings with filters and pagination (admin)
-   */
   async getAllBookings(params: {
     businessId: string;
     status?: BookingStatus;
@@ -133,9 +125,6 @@ class BookingService {
     return { bookings, total, page, totalPages };
   }
 
-  /**
-   * Update booking status (admin)
-   */
   async updateStatus(
     businessId: string,
     id: string,
@@ -149,40 +138,55 @@ class BookingService {
     if (booking.businessId.toString() !== businessId) {
       throw new AppError("You are not authorized to update this booking", 403);
     }
-    const previousStatus = booking.status;
-    booking.status = status;
 
-    // Handle status transitions
-    if (status === "completed" || status === "cancelled") {
-      // Release the slot
-      await slotService.releaseSlot(businessId, booking.slotId);
+    const transitionError = getBookingStatusTransitionError(
+      booking.status,
+      status,
+      booking.bookedStartTime,
+    );
 
-      // If completed, calculate overtime
-      if (status === "completed") {
-        const exitTime = actualExitTime ? new Date(actualExitTime) : new Date();
-        booking.actualExitTime = exitTime;
+    if (transitionError) {
+      throw new AppError(transitionError, 400);
+    }
 
-        const overtime = await pricingService.calculateOvertime(
-          businessId,
-          booking.bookedStartTime,
-          booking.bookedEndTime,
-          exitTime,
-          booking.price,
-        );
-
-        booking.overtimeHours = overtime.overtimeHours;
-        booking.overtimePrice = overtime.overtimePrice;
-        booking.totalPrice = overtime.newTotalPrice;
+    if (status === "completed") {
+      const exitTime = actualExitTime ? new Date(actualExitTime) : new Date();
+      if (Number.isNaN(exitTime.getTime())) {
+        throw new AppError("Actual exit time is invalid", 400);
       }
+      if (exitTime < booking.bookedStartTime) {
+        throw new AppError(
+          "Actual exit time cannot be before the booked start time",
+          400,
+        );
+      }
+
+      booking.status = status;
+      booking.actualExitTime = exitTime;
+
+      const overtime = pricingService.calculateOvertime(
+        booking.bookedStartTime,
+        booking.bookedEndTime,
+        exitTime,
+        booking.price,
+        booking.pricePerHour,
+      );
+
+      booking.overtimeHours = overtime.overtimeHours;
+      booking.overtimePrice = overtime.overtimePrice;
+      booking.totalPrice = overtime.newTotalPrice;
+    } else {
+      booking.status = status;
+      booking.actualExitTime = null;
+      booking.overtimeHours = 0;
+      booking.overtimePrice = 0;
+      booking.totalPrice = booking.price;
     }
 
     await booking.save();
     return booking;
   }
 
-  /**
-   * Get dashboard stats (admin)
-   */
   async getDashboardStats(businessId: string): Promise<{
     businessId: string;
     totalBookings: number;
@@ -192,12 +196,14 @@ class BookingService {
     cancelledBookings: number;
     totalRevenue: number;
     todayBookings: number;
-    slots: { total: number; available: number; occupied: number };
+    bookingEnabled: boolean;
   }> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const business = await Business.findById(businessId);
 
     const [
       totalBookings,
@@ -207,7 +213,6 @@ class BookingService {
       cancelledBookings,
       revenueResult,
       todayBookings,
-      slots,
     ] = await Promise.all([
       Booking.countDocuments({ businessId }),
       Booking.countDocuments({ status: "active", businessId }),
@@ -222,7 +227,6 @@ class BookingService {
         businessId,
         createdAt: { $gte: today, $lt: tomorrow },
       }),
-      slotService.getSlotStats(businessId),
     ]);
 
     return {
@@ -234,13 +238,10 @@ class BookingService {
       cancelledBookings,
       totalRevenue: revenueResult[0]?.total || 0,
       todayBookings,
-      slots,
+      bookingEnabled: business?.bookingEnabled !== false,
     };
   }
 
-  /**
-   * Export bookings as CSV data
-   */
   async exportBookingsCSV(
     businessId: string,
     status?: BookingStatus,
@@ -260,7 +261,6 @@ class BookingService {
       "Car Model",
       "Car Number",
       "Car Color",
-      "Slot",
       "Start Date",
       "End Date",
       "Status",
@@ -279,7 +279,6 @@ class BookingService {
       b.carModel,
       b.carNumber,
       b.carColor,
-      b.slotNumber,
       new Date(b.bookedStartTime).toISOString(),
       new Date(b.bookedEndTime).toISOString(),
       b.status,

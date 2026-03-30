@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types } from "mongoose";
+import mongoose, { Document } from "mongoose";
 
 export interface IBusiness extends Document {
   name: string;
@@ -14,12 +14,12 @@ export interface IBusiness extends Document {
       discountPercent: number;
     }[];
   };
-  totalSlots: number;
+  bookingEnabled: boolean;
 }
 
 const BusinessSchema = new mongoose.Schema({
   name: String,
-  slug: { type: String, unique: true }, // for separate landing pages
+  slug: { type: String, unique: true },
 
   branding: {
     logo: String,
@@ -36,10 +36,7 @@ const BusinessSchema = new mongoose.Schema({
     ],
   },
 
-  totalSlots: Number,
+  bookingEnabled: { type: Boolean, default: true },
 });
 
-BusinessSchema.index({ status: 1 });
-BusinessSchema.index({ slotNumber: 1 });
-BusinessSchema.index({ currentBookingId: 1 });
 export const Business = mongoose.model<IBusiness>("Business", BusinessSchema);

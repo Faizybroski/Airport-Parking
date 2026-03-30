@@ -1,8 +1,8 @@
 import { z } from "zod";
+import { BOOKING_STATUS_VALUES } from "../utils/bookingLifecycle";
 
 export const createBookingSchema = z
   .object({
-    // businessId: z.string().min(1, "Business ID is required").max(50),
     userName: z.string().min(2, "Name must be at least 2 characters").max(100),
     userEmail: z.string().email("Invalid email address"),
     userPhone: z.string().min(7, "Phone must be at least 7 characters").max(20),
@@ -24,18 +24,25 @@ export const createBookingSchema = z
     { message: "End time must be after start time", path: ["bookedEndTime"] },
   );
 
-export const updateBookingStatusSchema = z.object({
-  status: z.enum(["upcoming", "active", "completed", "cancelled"]),
-  actualExitTime: z.string().datetime().optional(),
-});
+export const updateBookingStatusSchema = z
+  .object({
+    status: z.enum(BOOKING_STATUS_VALUES),
+    actualExitTime: z.string().datetime().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.actualExitTime && data.status !== "completed") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["actualExitTime"],
+        message:
+          "actualExitTime can only be sent when marking a booking completed",
+      });
+    }
+  });
 
 export const adminLoginSchema = z.object({
   email: z.string().email("Invalid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-export const updateSlotSchema = z.object({
-  status: z.enum(["available", "occupied"]),
 });
 
 export const pricingConfigSchema = z.object({
@@ -51,9 +58,6 @@ export const pricingConfigSchema = z.object({
 });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
-export type UpdateBookingStatusInput = z.infer<
-  typeof updateBookingStatusSchema
->;
+export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>;
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
-export type UpdateSlotInput = z.infer<typeof updateSlotSchema>;
 export type PricingConfigInput = z.infer<typeof pricingConfigSchema>;

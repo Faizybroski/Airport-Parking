@@ -1,34 +1,30 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
+import {
+  BOOKING_STATUS_VALUES,
+  getBookingLifecycleState,
+  getBookingStatusLabel,
+} from "../utils/bookingLifecycle";
+import type { BookingStatus } from "../utils/bookingLifecycle";
 
-export type BookingStatus = "upcoming" | "active" | "completed" | "cancelled";
+export type { BookingStatus } from "../utils/bookingLifecycle";
 
 export interface IBooking extends Document {
-  // Business info
   businessId: Types.ObjectId;
-  // User info
   userName: string;
   userEmail: string;
   userPhone: string;
-  // Car info
   carMake: string;
   carModel: string;
   carNumber: string;
   carColor: string;
-  // Slot
-  slotId: Types.ObjectId;
-  slotNumber: number;
-  // Tracking
   trackingNumber: string;
-  // Dates
   bookedStartTime: Date;
   bookedEndTime: Date;
-  actualExitTime?: Date;
-  // Flight info (optional)
+  actualExitTime?: Date | null;
   departureTerminal?: string;
   departureFlightNo?: string;
   arrivalTerminal?: string;
   arrivalFlightNo?: string;
-  // Status & pricing
   status: BookingStatus;
   price: number;
   overtimeHours: number;
@@ -36,7 +32,6 @@ export interface IBooking extends Document {
   totalPrice: number;
   pricePerHour: number;
   discountPercent: number;
-  // Timestamps
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,8 +50,6 @@ const BookingSchema = new Schema<IBooking>(
     carModel: { type: String, required: true, trim: true },
     carNumber: { type: String, required: true, trim: true, uppercase: true },
     carColor: { type: String, required: true, trim: true },
-    slotId: { type: Schema.Types.ObjectId, ref: "Slot", required: true },
-    slotNumber: { type: Number, required: true },
     trackingNumber: {
       type: String,
       required: true,
@@ -72,7 +65,7 @@ const BookingSchema = new Schema<IBooking>(
     arrivalFlightNo: { type: String, default: "" },
     status: {
       type: String,
-      enum: ["upcoming", "active", "completed", "cancelled"],
+      enum: BOOKING_STATUS_VALUES,
       default: "upcoming",
     },
     price: { type: Number, required: true },
@@ -82,16 +75,59 @@ const BookingSchema = new Schema<IBooking>(
     pricePerHour: { type: Number, required: true },
     discountPercent: { type: Number, default: 0 },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
 
-// Indexes for performance
+BookingSchema.virtual("statusLabel").get(function (this: IBooking) {
+  return getBookingStatusLabel(this.status);
+});
+
+BookingSchema.virtual("canActivate").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).canActivate;
+});
+
+BookingSchema.virtual("canComplete").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).canComplete;
+});
+
+BookingSchema.virtual("canCancel").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).canCancel;
+});
+
+BookingSchema.virtual("isOvertimeRunning").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).isOvertimeRunning;
+});
+
+BookingSchema.virtual("timeUntilStartHours").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).timeUntilStartHours;
+});
+
+BookingSchema.virtual("timeRemainingHours").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).timeRemainingHours;
+});
+
+BookingSchema.virtual("uptimeHours").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).uptimeHours;
+});
+
+BookingSchema.virtual("uptimePrice").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).uptimePrice;
+});
+
+BookingSchema.virtual("currentTotalPrice").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).currentTotalPrice;
+});
+
+BookingSchema.virtual("lateChargeMode").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).lateChargeMode;
+});
+
 BookingSchema.index({ trackingNumber: 1 });
-BookingSchema.index({ slotId: 1 });
-BookingSchema.index({ slotNumber: 1 });
 BookingSchema.index({ carNumber: 1 });
-BookingSchema.index({ carMake: 1 });
-BookingSchema.index({ carModel: 1 });
 BookingSchema.index({ status: 1 });
 BookingSchema.index({ bookedStartTime: 1 });
 BookingSchema.index({ bookedEndTime: 1 });

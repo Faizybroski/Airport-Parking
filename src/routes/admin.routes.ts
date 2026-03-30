@@ -4,8 +4,9 @@ import {
   getAllBookings,
   updateBookingStatus,
   exportBookings,
+  getBookingToggle,
+  setBookingToggle,
 } from "../controllers/admin.controller";
-import { getAllSlots, updateSlot } from "../controllers/slot.controller";
 import {
   getPricingConfig,
   updatePricingConfig,
@@ -15,7 +16,6 @@ import { validate } from "../middleware/validate";
 import { attachBusinessId } from "../middleware/business";
 import {
   updateBookingStatusSchema,
-  updateSlotSchema,
   pricingConfigSchema,
 } from "../validators";
 
@@ -37,14 +37,9 @@ router.patch(
   updateBookingStatus,
 );
 
-// Slots
-router.get("/slots", attachBusinessId, getAllSlots);
-router.patch(
-  "/slots/:id",
-  attachBusinessId,
-  validate(updateSlotSchema),
-  updateSlot,
-);
+// Booking toggle
+router.get("/booking-toggle", attachBusinessId, getBookingToggle);
+router.patch("/booking-toggle", attachBusinessId, setBookingToggle);
 
 // Pricing
 router.get("/pricing", attachBusinessId, getPricingConfig);

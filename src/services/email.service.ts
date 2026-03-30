@@ -86,10 +86,6 @@ class EmailService {
           <div class="section-title">📍 Parking Details</div>
           <table>
             <tr class="detail-row">
-              <td class="label">Slot Number</td>
-              <td class="value"><span class="slot-badge">Slot ${booking.slotNumber}</span></td>
-            </tr>
-            <tr class="detail-row">
               <td class="label">Drop-off</td>
               <td class="value">${startDate}</td>
             </tr>

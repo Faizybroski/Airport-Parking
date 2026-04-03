@@ -9,6 +9,9 @@ import { errorHandler } from "./middleware/errorHandler";
 import bookingRoutes from "./routes/booking.routes";
 import authRoutes from "./routes/auth.routes";
 import adminRoutes from "./routes/admin.routes";
+import paymentRoutes from "./routes/payment.routes";
+import contactRoutes from "./routes/contact.routes";
+import { stripeWebhook } from "./controllers/payment.controller";
 
 const app = express();
 
@@ -22,14 +25,23 @@ app.use(
   }),
 );
 app.use(morgan("dev"));
+
+// Stripe webhook needs the raw body — must be registered BEFORE express.json()
+app.post(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhook,
+);
+
 app.use(express.json());
 app.use(cookieParser());
 
 // Routes
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api", contactRoutes);
 app.use("/api/admin", authRoutes);
 app.use("/api/admin", adminRoutes);
-
 // Health check
 app.get("/api/health", (_req, res) => {
   res.json({ success: true, message: "ParkPro API is running" });

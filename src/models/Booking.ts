@@ -8,6 +8,8 @@ import type { BookingStatus } from "../utils/bookingLifecycle";
 
 export type { BookingStatus } from "../utils/bookingLifecycle";
 
+export type PaymentStatus = 'awaiting_payment' | 'paid';
+
 export interface IBooking extends Document {
   businessId: Types.ObjectId;
   userName: string;
@@ -26,6 +28,8 @@ export interface IBooking extends Document {
   arrivalTerminal?: string;
   arrivalFlightNo?: string;
   status: BookingStatus;
+  paymentStatus: PaymentStatus;
+  stripeSessionId?: string;
   price: number;
   overtimeHours: number;
   overtimePrice: number;
@@ -68,6 +72,12 @@ const BookingSchema = new Schema<IBooking>(
       enum: BOOKING_STATUS_VALUES,
       default: "upcoming",
     },
+    paymentStatus: {
+      type: String,
+      enum: ['awaiting_payment', 'paid'],
+      default: 'paid',
+    },
+    stripeSessionId: { type: String, default: null },
     price: { type: Number, required: true },
     overtimeHours: { type: Number, default: 0 },
     overtimePrice: { type: Number, default: 0 },
@@ -126,6 +136,7 @@ BookingSchema.virtual("lateChargeMode").get(function (this: IBooking) {
   return getBookingLifecycleState(this).lateChargeMode;
 });
 
+BookingSchema.index({ stripeSessionId: 1 });
 BookingSchema.index({ trackingNumber: 1 });
 BookingSchema.index({ carNumber: 1 });
 BookingSchema.index({ status: 1 });

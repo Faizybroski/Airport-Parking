@@ -58,6 +58,7 @@ class BookingService {
       arrivalFlightNo: data.arrivalFlightNo || "",
       trackingNumber,
       status: "upcoming",
+      paymentStatus: "awaiting_payment",
       price: priceCalc.finalPrice,
       totalPrice: priceCalc.finalPrice,
       pricePerHour: priceCalc.pricePerHour,
@@ -67,10 +68,34 @@ class BookingService {
     });
 
     await booking.save();
-
-    emailService.sendBookingConfirmation(booking).catch(console.error);
-
     return booking;
+  }
+
+  async attachStripeSession(bookingId: string, sessionId: string): Promise<void> {
+    await Booking.findByIdAndUpdate(bookingId, { stripeSessionId: sessionId });
+  }
+
+  async confirmPayment(sessionId: string): Promise<IBooking | null> {
+    const booking = await Booking.findOneAndUpdate(
+      { stripeSessionId: sessionId, paymentStatus: 'awaiting_payment' },
+      { paymentStatus: 'paid' },
+      { new: true },
+    );
+    if (booking) {
+      emailService.sendBookingConfirmation(booking).catch(console.error);
+    }
+    return booking;
+  }
+
+  async cancelPendingBooking(sessionId: string): Promise<void> {
+    await Booking.findOneAndUpdate(
+      { stripeSessionId: sessionId, paymentStatus: 'awaiting_payment' },
+      { status: 'cancelled' },
+    );
+  }
+
+  async getBySessionId(sessionId: string): Promise<IBooking | null> {
+    return Booking.findOne({ stripeSessionId: sessionId });
   }
 
   async getByTrackingNumber(
@@ -195,6 +220,9 @@ class BookingService {
     completedBookings: number;
     cancelledBookings: number;
     totalRevenue: number;
+    overtimeRevenue: number;
+    stripeRevenue: number;
+    baseRevenue: number;
     todayBookings: number;
     bookingEnabled: boolean;
   }> {
@@ -212,6 +240,8 @@ class BookingService {
       completedBookings,
       cancelledBookings,
       revenueResult,
+      overtimeResult,
+      stripeResult,
       todayBookings,
     ] = await Promise.all([
       Booking.countDocuments({ businessId }),
@@ -219,8 +249,25 @@ class BookingService {
       Booking.countDocuments({ status: "upcoming", businessId }),
       Booking.countDocuments({ status: "completed", businessId }),
       Booking.countDocuments({ status: "cancelled", businessId }),
+      // Total revenue: sum of totalPrice for completed + active
       Booking.aggregate([
         { $match: { businessId, status: { $in: ["completed", "active"] } } },
+        { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+      ]),
+      // Overtime revenue: sum of overtimePrice for completed bookings
+      Booking.aggregate([
+        { $match: { businessId, status: "completed", overtimeHours: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: "$overtimePrice" } } },
+      ]),
+      // Stripe revenue: sum of totalPrice for paid bookings (completed + active)
+      Booking.aggregate([
+        {
+          $match: {
+            businessId,
+            paymentStatus: "paid",
+            status: { $in: ["completed", "active"] },
+          },
+        },
         { $group: { _id: null, total: { $sum: "$totalPrice" } } },
       ]),
       Booking.countDocuments({
@@ -229,6 +276,10 @@ class BookingService {
       }),
     ]);
 
+    const totalRevenue: number = revenueResult[0]?.total || 0;
+    const overtimeRevenue: number = overtimeResult[0]?.total || 0;
+    const stripeRevenue: number = stripeResult[0]?.total || 0;
+
     return {
       businessId,
       totalBookings,
@@ -236,7 +287,10 @@ class BookingService {
       upcomingBookings,
       completedBookings,
       cancelledBookings,
-      totalRevenue: revenueResult[0]?.total || 0,
+      totalRevenue,
+      overtimeRevenue,
+      stripeRevenue,
+      baseRevenue: totalRevenue - overtimeRevenue,
       todayBookings,
       bookingEnabled: business?.bookingEnabled !== false,
     };

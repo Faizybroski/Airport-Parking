@@ -1,23 +1,23 @@
-import nodemailer from 'nodemailer';
-import { config } from '../config';
-import { IBooking } from '../models/Booking';
-import { formatDuration, formatPrice } from '../utils/helpers';
+import nodemailer from "nodemailer";
+import { config } from "../config";
+import { IBooking } from "../models/Booking";
+import { formatDuration, formatPrice } from "../utils/helpers";
 
 class EmailService {
   private transporter: nodemailer.Transporter;
   private isConfigured: boolean;
 
   constructor() {
-    this.isConfigured = !!(config.smtp.user && config.smtp.pass);
+    this.isConfigured = !!(config.bookingSmtp.user && config.bookingSmtp.pass);
 
     if (this.isConfigured) {
       this.transporter = nodemailer.createTransport({
-        host: config.smtp.host,
-        port: config.smtp.port,
-        secure: config.smtp.port === 465,
+        host: config.bookingSmtp.host,
+        port: config.bookingSmtp.port,
+        secure: config.bookingSmtp.port === 465,
         auth: {
-          user: config.smtp.user,
-          pass: config.smtp.pass,
+          user: config.bookingSmtp.user,
+          pass: config.bookingSmtp.pass,
         },
       });
     } else {
@@ -25,20 +25,27 @@ class EmailService {
       this.transporter = nodemailer.createTransport({
         jsonTransport: true,
       });
-      console.log('📧 Email: SMTP not configured, emails will be logged to console.');
+      console.log(
+        "📧 Email: SMTP not configured, emails will be logged to console.",
+      );
     }
   }
 
   async sendBookingConfirmation(booking: IBooking): Promise<void> {
-    const startDate = new Date(booking.bookedStartTime).toLocaleString('en-GB', {
-      dateStyle: 'full',
-      timeStyle: 'short',
+    const startDate = new Date(booking.bookedStartTime).toLocaleString(
+      "en-GB",
+      {
+        dateStyle: "full",
+        timeStyle: "short",
+      },
+    );
+    const endDate = new Date(booking.bookedEndTime).toLocaleString("en-GB", {
+      dateStyle: "full",
+      timeStyle: "short",
     });
-    const endDate = new Date(booking.bookedEndTime).toLocaleString('en-GB', {
-      dateStyle: 'full',
-      timeStyle: 'short',
-    });
-    const totalHours = (booking.bookedEndTime.getTime() - booking.bookedStartTime.getTime()) / (1000 * 60 * 60);
+    const totalHours =
+      (booking.bookedEndTime.getTime() - booking.bookedStartTime.getTime()) /
+      (1000 * 60 * 60);
     const duration = formatDuration(totalHours);
 
     const html = `
@@ -115,20 +122,24 @@ class EmailService {
             </tr>
           </table>
 
-          ${booking.departureFlightNo ? `
+          ${
+            booking.departureFlightNo
+              ? `
           <div class="section-title">✈️ Flight Details</div>
           <table>
-            ${booking.departureTerminal ? `<tr class="detail-row"><td class="label">Departure Terminal</td><td class="value">${booking.departureTerminal}</td></tr>` : ''}
-            ${booking.departureFlightNo ? `<tr class="detail-row"><td class="label">Departure Flight</td><td class="value">${booking.departureFlightNo}</td></tr>` : ''}
-            ${booking.arrivalTerminal ? `<tr class="detail-row"><td class="label">Arrival Terminal</td><td class="value">${booking.arrivalTerminal}</td></tr>` : ''}
-            ${booking.arrivalFlightNo ? `<tr class="detail-row"><td class="label">Arrival Flight</td><td class="value">${booking.arrivalFlightNo}</td></tr>` : ''}
+            ${booking.departureTerminal ? `<tr class="detail-row"><td class="label">Departure Terminal</td><td class="value">${booking.departureTerminal}</td></tr>` : ""}
+            ${booking.departureFlightNo ? `<tr class="detail-row"><td class="label">Departure Flight</td><td class="value">${booking.departureFlightNo}</td></tr>` : ""}
+            ${booking.arrivalTerminal ? `<tr class="detail-row"><td class="label">Arrival Terminal</td><td class="value">${booking.arrivalTerminal}</td></tr>` : ""}
+            ${booking.arrivalFlightNo ? `<tr class="detail-row"><td class="label">Arrival Flight</td><td class="value">${booking.arrivalFlightNo}</td></tr>` : ""}
           </table>
-          ` : ''}
+          `
+              : ""
+          }
 
           <div class="price-box">
             <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Total Price</div>
             <div class="amount">${formatPrice(booking.totalPrice)}</div>
-            ${booking.discountPercent > 0 ? `<div style="font-size: 13px; color: #2a7d2a;">✅ ${booking.discountPercent}% discount applied</div>` : ''}
+            ${booking.discountPercent > 0 ? `<div style="font-size: 13px; color: #2a7d2a;">✅ ${booking.discountPercent}% discount applied</div>` : ""}
           </div>
 
           <p style="font-size: 14px; color: #666;">If you have any questions, please don't hesitate to contact our support team.</p>
@@ -143,7 +154,7 @@ class EmailService {
     `;
 
     const mailOptions = {
-      from: `"${config.emailFromName}" <${config.emailFrom}>`,
+      from: `"${config.emailFromName}" <${config.bookingEmailFrom}>`,
       to: booking.userEmail,
       subject: `Booking Confirmed - ${booking.trackingNumber} | ParkPro Parking`,
       html,
@@ -152,12 +163,12 @@ class EmailService {
     try {
       const info = await this.transporter.sendMail(mailOptions);
       if (!this.isConfigured) {
-        console.log('📧 Email (dev mode):', JSON.parse(info.message).subject);
+        console.log("📧 Email (dev mode):", JSON.parse(info.message).subject);
       } else {
-        console.log('📧 Email sent:', info.messageId);
+        console.log("📧 Email sent:", info.messageId);
       }
     } catch (error) {
-      console.error('❌ Email send failed:', error);
+      console.error("❌ Email send failed:", error);
       // Don't throw — email failure shouldn't break the booking
     }
   }

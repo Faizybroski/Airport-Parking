@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Booking, IBooking, BookingStatus } from "../models/Booking";
 import { Business } from "../models/Business";
 import { pricingService } from "./pricing.service";
@@ -174,6 +175,13 @@ class BookingService {
       throw new AppError(transitionError, 400);
     }
 
+    if (status !== "cancelled" && booking.paymentStatus !== "paid") {
+      throw new AppError(
+        "Booking cannot be activated or completed until payment is confirmed.",
+        400,
+      );
+    }
+
     if (status === "completed") {
       const exitTime = actualExitTime ? new Date(actualExitTime) : new Date();
       if (Number.isNaN(exitTime.getTime())) {
@@ -232,6 +240,7 @@ class BookingService {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const business = await Business.findById(businessId);
+    const objectBusinessId = new mongoose.Types.ObjectId(businessId);
 
     const [
       totalBookings,
@@ -239,9 +248,8 @@ class BookingService {
       upcomingBookings,
       completedBookings,
       cancelledBookings,
-      revenueResult,
+      stripeRevenueResult,
       overtimeResult,
-      stripeResult,
       todayBookings,
     ] = await Promise.all([
       Booking.countDocuments({ businessId }),
@@ -249,26 +257,29 @@ class BookingService {
       Booking.countDocuments({ status: "upcoming", businessId }),
       Booking.countDocuments({ status: "completed", businessId }),
       Booking.countDocuments({ status: "cancelled", businessId }),
-      // Total revenue: sum of totalPrice for completed + active
-      Booking.aggregate([
-        { $match: { businessId, status: { $in: ["completed", "active"] } } },
-        { $group: { _id: null, total: { $sum: "$totalPrice" } } },
-      ]),
-      // Overtime revenue: sum of overtimePrice for completed bookings
-      Booking.aggregate([
-        { $match: { businessId, status: "completed", overtimeHours: { $gt: 0 } } },
-        { $group: { _id: null, total: { $sum: "$overtimePrice" } } },
-      ]),
-      // Stripe revenue: sum of totalPrice for paid bookings (completed + active)
+      // Base online revenue: sum of the prepaid booking amount for paid,
+      // non-cancelled bookings.
       Booking.aggregate([
         {
           $match: {
-            businessId,
+            businessId: objectBusinessId,
             paymentStatus: "paid",
-            status: { $in: ["completed", "active"] },
+            status: { $in: ["upcoming", "active", "completed"] },
           },
         },
-        { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+        { $group: { _id: null, total: { $sum: "$price" } } },
+      ]),
+      // Extra pickup revenue is finalized once the booking is completed.
+      Booking.aggregate([
+        {
+          $match: {
+            businessId: objectBusinessId,
+            paymentStatus: "paid",
+            status: "completed",
+            overtimePrice: { $gt: 0 },
+          },
+        },
+        { $group: { _id: null, total: { $sum: "$overtimePrice" } } },
       ]),
       Booking.countDocuments({
         businessId,
@@ -276,9 +287,9 @@ class BookingService {
       }),
     ]);
 
-    const totalRevenue: number = revenueResult[0]?.total || 0;
+    const stripeRevenue: number = stripeRevenueResult[0]?.total || 0;
     const overtimeRevenue: number = overtimeResult[0]?.total || 0;
-    const stripeRevenue: number = stripeResult[0]?.total || 0;
+    const totalRevenue: number = stripeRevenue + overtimeRevenue;
 
     return {
       businessId,
@@ -290,7 +301,7 @@ class BookingService {
       totalRevenue,
       overtimeRevenue,
       stripeRevenue,
-      baseRevenue: totalRevenue - overtimeRevenue,
+      baseRevenue: stripeRevenue,
       todayBookings,
       bookingEnabled: business?.bookingEnabled !== false,
     };
@@ -317,7 +328,9 @@ class BookingService {
       "Car Color",
       "Start Date",
       "End Date",
+      "Actual Exit Time",
       "Status",
+      "Payment Status",
       "Price (£)",
       "Overtime Hours",
       "Total Price (£)",
@@ -335,7 +348,9 @@ class BookingService {
       b.carColor,
       new Date(b.bookedStartTime).toISOString(),
       new Date(b.bookedEndTime).toISOString(),
+      b.actualExitTime ? new Date(b.actualExitTime).toISOString() : "",
       b.status,
+      b.paymentStatus,
       b.price.toFixed(2),
       b.overtimeHours.toFixed(1),
       b.totalPrice.toFixed(2),

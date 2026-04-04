@@ -67,6 +67,12 @@ const BookingSchema = new mongoose_1.Schema({
         enum: bookingLifecycle_1.BOOKING_STATUS_VALUES,
         default: "upcoming",
     },
+    paymentStatus: {
+        type: String,
+        enum: ['awaiting_payment', 'paid'],
+        default: 'paid',
+    },
+    stripeSessionId: { type: String, default: null },
     price: { type: Number, required: true },
     overtimeHours: { type: Number, default: 0 },
     overtimePrice: { type: Number, default: 0 },
@@ -111,6 +117,7 @@ BookingSchema.virtual("currentTotalPrice").get(function () {
 BookingSchema.virtual("lateChargeMode").get(function () {
     return (0, bookingLifecycle_1.getBookingLifecycleState)(this).lateChargeMode;
 });
+BookingSchema.index({ stripeSessionId: 1 });
 BookingSchema.index({ trackingNumber: 1 });
 BookingSchema.index({ carNumber: 1 });
 BookingSchema.index({ status: 1 });

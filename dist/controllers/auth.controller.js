@@ -6,11 +6,11 @@ const login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
         const result = await auth_service_1.authService.login(email, password);
-        const environment = process.env.environment;
+        const isProduction = process.env.NODE_ENV === "production";
         res.cookie("parkpro_token", result.token, {
             httpOnly: true,
-            secure: environment === "production",
-            sameSite: environment === "production" ? "none" : "lax",
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
             path: "/",
         });
         res.json({
@@ -25,7 +25,13 @@ const login = async (req, res, next) => {
 exports.login = login;
 const logout = async (req, res, next) => {
     try {
-        res.clearCookie("parkpro_token");
+        const isProduction = process.env.NODE_ENV === "production";
+        res.clearCookie("parkpro_token", {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            path: "/",
+        });
         res.json({ success: true, message: "Logged out successfully" });
     }
     catch (error) {

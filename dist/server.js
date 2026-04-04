@@ -14,6 +14,9 @@ const errorHandler_1 = require("./middleware/errorHandler");
 const booking_routes_1 = __importDefault(require("./routes/booking.routes"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
+const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
+const contact_routes_1 = __importDefault(require("./routes/contact.routes"));
+const payment_controller_1 = require("./controllers/payment.controller");
 const app = (0, express_1.default)();
 // Middleware
 app.use((0, helmet_1.default)());
@@ -23,10 +26,14 @@ app.use((0, cors_1.default)({
     allowedHeaders: ["Content-Type", "Authorization", "x-business-id"],
 }));
 app.use((0, morgan_1.default)("dev"));
+// Stripe webhook needs the raw body — must be registered BEFORE express.json()
+app.post("/api/payments/webhook", express_1.default.raw({ type: "application/json" }), payment_controller_1.stripeWebhook);
 app.use(express_1.default.json());
 app.use((0, cookie_parser_1.default)());
 // Routes
 app.use("/api/bookings", booking_routes_1.default);
+app.use("/api/payments", payment_routes_1.default);
+app.use("/api", contact_routes_1.default);
 app.use("/api/admin", auth_routes_1.default);
 app.use("/api/admin", admin_routes_1.default);
 // Health check

@@ -26,7 +26,9 @@ class AuthService {
         //   expiresIn: config.jwtExpiresIn,
         // } as jwt.SignOptions);
         const token = jsonwebtoken_1.default.sign({ id: admin._id }, // or however your data looks
-        config_1.config.jwtSecret, { expiresIn: "7d" });
+        config_1.config.jwtSecret, {
+            expiresIn: config_1.config.jwtExpiresIn,
+        });
         return {
             token,
             admin: {

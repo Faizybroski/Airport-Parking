@@ -3,14 +3,23 @@ export declare const config: {
     mongodbUri: string;
     jwtSecret: string;
     jwtExpiresIn: string;
-    smtp: {
+    bookingSmtp: {
         host: string;
         port: number;
         user: string;
         pass: string;
     };
-    emailFrom: string;
+    contactSmtp: {
+        host: string;
+        port: number;
+        user: string;
+        pass: string;
+    };
+    contactEmail: string;
+    bookingEmailFrom: string;
     emailFromName: string;
     frontendUrl: string;
+    stripeSecretKey: string;
+    stripeWebhookSecret: string;
 };
 //# sourceMappingURL=index.d.ts.map

@@ -200,24 +200,46 @@ export const getBookingBySession = async (
 ): Promise<void> => {
   try {
     const sessionId = String(req.params.sessionId);
-    const booking = await bookingService.getBySessionId(sessionId);
 
+    const booking = await bookingService.getBySessionId(sessionId);
     if (!booking) {
       return next(new AppError("Booking not found", 404));
     }
 
+    // Always fetch latest status from Stripe (source of truth)
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    if (session.payment_status === "paid") {
+    let latestStatus = booking.paymentStatus;
+
+    // Sync DB if Stripe says paid but DB is outdated
+    if (session.payment_status === "paid" && booking.paymentStatus !== "paid") {
       await bookingService.confirmPayment(session.id);
+
+      // refresh booking after update (CRITICAL)
+      const updatedBooking = await bookingService.getBySessionId(sessionId);
+      latestStatus = updatedBooking?.paymentStatus || "paid";
     }
 
-    // Only return paid bookings to prevent enumeration of pending ones
-    if (booking.paymentStatus !== "paid") {
-      return next(new AppError("Payment not yet confirmed", 402));
+    // If still not paid → return latest Stripe status instead of blocking
+    if (latestStatus !== "paid") {
+      res.status(200).json({
+        success: true,
+        paymentStatus: session.payment_status, // 👈 real-time status
+        message: "Payment not completed yet",
+      });
+      return;
     }
 
-    res.json({ success: true, data: booking });
+    // Paid → return full booking
+    const finalBooking =
+      latestStatus === booking.paymentStatus
+        ? booking
+        : await bookingService.getBySessionId(sessionId);
+
+    res.json({
+      success: true,
+      data: finalBooking,
+    });
   } catch (error) {
     next(error);
   }

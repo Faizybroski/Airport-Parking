@@ -34,6 +34,7 @@ class PricingService {
         }
         else {
             config = await PricingConfig_1.PricingConfig.create({
+                businessId,
                 pricePerHour,
                 discountRules: sortedRules,
             });

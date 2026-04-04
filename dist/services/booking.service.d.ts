@@ -2,6 +2,10 @@ import { IBooking, BookingStatus } from "../models/Booking";
 import { CreateBookingInput } from "../validators";
 declare class BookingService {
     createBooking(businessId: string, data: CreateBookingInput): Promise<IBooking>;
+    attachStripeSession(bookingId: string, sessionId: string): Promise<void>;
+    confirmPayment(sessionId: string): Promise<IBooking | null>;
+    cancelPendingBooking(sessionId: string): Promise<void>;
+    getBySessionId(sessionId: string): Promise<IBooking | null>;
     getByTrackingNumber(businessId: string, trackingNumber: string): Promise<IBooking>;
     getAllBookings(params: {
         businessId: string;
@@ -24,6 +28,9 @@ declare class BookingService {
         completedBookings: number;
         cancelledBookings: number;
         totalRevenue: number;
+        overtimeRevenue: number;
+        stripeRevenue: number;
+        baseRevenue: number;
         todayBookings: number;
         bookingEnabled: boolean;
     }>;

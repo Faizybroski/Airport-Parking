@@ -1,7 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import { authService } from "../services/auth.service";
-import jwt from "jsonwebtoken";
-import { config } from "../config";
 
 export const login = async (
   req: Request,
@@ -12,12 +10,12 @@ export const login = async (
     const { email, password } = req.body;
     const result = await authService.login(email, password);
 
-    const environment = process.env.environment;
+    const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("parkpro_token", result.token, {
       httpOnly: true,
-      secure: environment === "production",
-      sameSite: environment === "production" ? "none" : "lax",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       path: "/",
     });
 
@@ -36,7 +34,14 @@ export const logout = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    res.clearCookie("parkpro_token");
+    const isProduction = process.env.NODE_ENV === "production";
+
+    res.clearCookie("parkpro_token", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      path: "/",
+    });
     res.json({ success: true, message: "Logged out successfully" });
   } catch (error) {
     next(error);

@@ -61,6 +61,7 @@ class PricingService {
       await config.save();
     } else {
       config = await PricingConfig.create({
+        businessId,
         pricePerHour,
         discountRules: sortedRules,
       });

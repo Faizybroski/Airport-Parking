@@ -1,4 +1,4 @@
-import { IBooking } from '../models/Booking';
+import { IBooking } from "../models/Booking";
 declare class EmailService {
     private transporter;
     private isConfigured;

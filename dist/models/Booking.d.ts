@@ -1,6 +1,7 @@
 import mongoose, { Document, Types } from "mongoose";
 import type { BookingStatus } from "../utils/bookingLifecycle";
 export type { BookingStatus } from "../utils/bookingLifecycle";
+export type PaymentStatus = 'awaiting_payment' | 'paid';
 export interface IBooking extends Document {
     businessId: Types.ObjectId;
     userName: string;
@@ -19,6 +20,8 @@ export interface IBooking extends Document {
     arrivalTerminal?: string;
     arrivalFlightNo?: string;
     status: BookingStatus;
+    paymentStatus: PaymentStatus;
+    stripeSessionId?: string;
     price: number;
     overtimeHours: number;
     overtimePrice: number;

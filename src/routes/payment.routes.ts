@@ -12,7 +12,7 @@ const router = Router();
  * POST /api/payments/webhook
  * Must use raw body — registered with express.raw() in server.ts BEFORE express.json().
  */
-router.post("/webhook", stripeWebhook);
+// router.post("/webhook", stripeWebhook);
 
 /**
  * POST /api/payments/create-checkout-session

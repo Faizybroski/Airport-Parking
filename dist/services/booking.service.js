@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bookingService = void 0;
+const mongoose_1 = __importDefault(require("mongoose"));
 const Booking_1 = require("../models/Booking");
 const Business_1 = require("../models/Business");
 const pricing_service_1 = require("./pricing.service");
@@ -45,6 +49,7 @@ class BookingService {
             arrivalFlightNo: data.arrivalFlightNo || "",
             trackingNumber,
             status: "upcoming",
+            paymentStatus: "awaiting_payment",
             price: priceCalc.finalPrice,
             totalPrice: priceCalc.finalPrice,
             pricePerHour: priceCalc.pricePerHour,
@@ -53,8 +58,23 @@ class BookingService {
             overtimePrice: 0,
         });
         await booking.save();
-        email_service_1.emailService.sendBookingConfirmation(booking).catch(console.error);
         return booking;
+    }
+    async attachStripeSession(bookingId, sessionId) {
+        await Booking_1.Booking.findByIdAndUpdate(bookingId, { stripeSessionId: sessionId });
+    }
+    async confirmPayment(sessionId) {
+        const booking = await Booking_1.Booking.findOneAndUpdate({ stripeSessionId: sessionId, paymentStatus: 'awaiting_payment' }, { paymentStatus: 'paid' }, { new: true });
+        if (booking) {
+            email_service_1.emailService.sendBookingConfirmation(booking).catch(console.error);
+        }
+        return booking;
+    }
+    async cancelPendingBooking(sessionId) {
+        await Booking_1.Booking.findOneAndUpdate({ stripeSessionId: sessionId, paymentStatus: 'awaiting_payment' }, { status: 'cancelled' });
+    }
+    async getBySessionId(sessionId) {
+        return Booking_1.Booking.findOne({ stripeSessionId: sessionId });
     }
     async getByTrackingNumber(businessId, trackingNumber) {
         const booking = await Booking_1.Booking.findOne({
@@ -101,6 +121,9 @@ class BookingService {
         if (transitionError) {
             throw new errorHandler_1.AppError(transitionError, 400);
         }
+        if (status !== "cancelled" && booking.paymentStatus !== "paid") {
+            throw new errorHandler_1.AppError("Booking cannot be activated or completed until payment is confirmed.", 400);
+        }
         if (status === "completed") {
             const exitTime = actualExitTime ? new Date(actualExitTime) : new Date();
             if (Number.isNaN(exitTime.getTime())) {
@@ -132,21 +155,45 @@ class BookingService {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         const business = await Business_1.Business.findById(businessId);
-        const [totalBookings, activeBookings, upcomingBookings, completedBookings, cancelledBookings, revenueResult, todayBookings,] = await Promise.all([
+        const objectBusinessId = new mongoose_1.default.Types.ObjectId(businessId);
+        const [totalBookings, activeBookings, upcomingBookings, completedBookings, cancelledBookings, stripeRevenueResult, overtimeResult, todayBookings,] = await Promise.all([
             Booking_1.Booking.countDocuments({ businessId }),
             Booking_1.Booking.countDocuments({ status: "active", businessId }),
             Booking_1.Booking.countDocuments({ status: "upcoming", businessId }),
             Booking_1.Booking.countDocuments({ status: "completed", businessId }),
             Booking_1.Booking.countDocuments({ status: "cancelled", businessId }),
+            // Base online revenue: sum of the prepaid booking amount for paid,
+            // non-cancelled bookings.
             Booking_1.Booking.aggregate([
-                { $match: { businessId, status: { $in: ["completed", "active"] } } },
-                { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+                {
+                    $match: {
+                        businessId: objectBusinessId,
+                        paymentStatus: "paid",
+                        status: { $in: ["upcoming", "active", "completed"] },
+                    },
+                },
+                { $group: { _id: null, total: { $sum: "$price" } } },
+            ]),
+            // Extra pickup revenue is finalized once the booking is completed.
+            Booking_1.Booking.aggregate([
+                {
+                    $match: {
+                        businessId: objectBusinessId,
+                        paymentStatus: "paid",
+                        status: "completed",
+                        overtimePrice: { $gt: 0 },
+                    },
+                },
+                { $group: { _id: null, total: { $sum: "$overtimePrice" } } },
             ]),
             Booking_1.Booking.countDocuments({
                 businessId,
                 createdAt: { $gte: today, $lt: tomorrow },
             }),
         ]);
+        const stripeRevenue = stripeRevenueResult[0]?.total || 0;
+        const overtimeRevenue = overtimeResult[0]?.total || 0;
+        const totalRevenue = stripeRevenue + overtimeRevenue;
         return {
             businessId,
             totalBookings,
@@ -154,7 +201,10 @@ class BookingService {
             upcomingBookings,
             completedBookings,
             cancelledBookings,
-            totalRevenue: revenueResult[0]?.total || 0,
+            totalRevenue,
+            overtimeRevenue,
+            stripeRevenue,
+            baseRevenue: stripeRevenue,
             todayBookings,
             bookingEnabled: business?.bookingEnabled !== false,
         };
@@ -177,7 +227,9 @@ class BookingService {
             "Car Color",
             "Start Date",
             "End Date",
+            "Actual Exit Time",
             "Status",
+            "Payment Status",
             "Price (£)",
             "Overtime Hours",
             "Total Price (£)",
@@ -194,7 +246,9 @@ class BookingService {
             b.carColor,
             new Date(b.bookedStartTime).toISOString(),
             new Date(b.bookedEndTime).toISOString(),
+            b.actualExitTime ? new Date(b.actualExitTime).toISOString() : "",
             b.status,
+            b.paymentStatus,
             b.price.toFixed(2),
             b.overtimeHours.toFixed(1),
             b.totalPrice.toFixed(2),

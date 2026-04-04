@@ -160,7 +160,9 @@ export const stripeWebhook = async (
         if (session.payment_status === "paid") {
           const booking = await bookingService.confirmPayment(session.id);
           if (booking) {
-            console.log(`Payment confirmed for booking ${booking.trackingNumber}`);
+            console.log(
+              `Payment confirmed for booking ${booking.trackingNumber}`,
+            );
           }
         }
         break;
@@ -169,7 +171,9 @@ export const stripeWebhook = async (
       case "checkout.session.expired": {
         const session = event.data.object as Stripe.Checkout.Session;
         await bookingService.cancelPendingBooking(session.id);
-        console.log(`Checkout session expired, booking cancelled: ${session.id}`);
+        console.log(
+          `Checkout session expired, booking cancelled: ${session.id}`,
+        );
         break;
       }
 
@@ -200,6 +204,12 @@ export const getBookingBySession = async (
 
     if (!booking) {
       return next(new AppError("Booking not found", 404));
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status === "paid") {
+      await bookingService.confirmPayment(session.id);
     }
 
     // Only return paid bookings to prevent enumeration of pending ones

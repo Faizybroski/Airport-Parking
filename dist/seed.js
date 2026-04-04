@@ -10,42 +10,35 @@ const models_1 = require("./models");
 const seed = async () => {
     try {
         await mongoose_1.default.connect(config_1.config.mongodbUri);
-        console.log("✅ Connected to MongoDB");
-        // Seed Business
-        const existingBusiness = await models_1.Business.findOne({ name: "Park Pro" });
-        if (!existingBusiness) {
-            await models_1.Business.create({
+        console.log("Connected to MongoDB");
+        let business = await models_1.Business.findOne({ name: "Park Pro" });
+        if (!business) {
+            business = await models_1.Business.create({
                 name: "Park Pro",
                 slug: "park-pro",
                 bookingEnabled: true,
             });
-            console.log("✅ Business created: Park Pro / park-pro");
+            console.log("Business created: Park Pro / park-pro");
         }
         else {
-            console.log("ℹ️  Business already exists");
+            console.log("Business already exists");
         }
-        // Seed Pricing Config
         const existingConfig = await PricingConfig_1.PricingConfig.findOne();
         if (!existingConfig) {
             await PricingConfig_1.PricingConfig.create({
-                businessId: existingBusiness?._id,
-                pricePerHour: 3,
-                discountRules: [
-                    { minDays: 5, percentage: 10 },
-                    { minDays: 10, percentage: 20 },
-                    { minDays: 15, percentage: 30 },
-                ],
+                businessId: business._id,
+                firstTenDayPrices: [12, 20, 28, 36, 44, 52, 60, 68, 76, 84],
             });
-            console.log("✅ Pricing config created: £3/hr with discount tiers");
+            console.log("Pricing config created with the first 10 daily prices");
         }
         else {
-            console.log("ℹ️  Pricing config already exists");
+            console.log("Pricing config already exists");
         }
-        console.log("\n🎉 Seed completed successfully!");
+        console.log("Seed completed successfully");
         process.exit(0);
     }
     catch (error) {
-        console.error("❌ Seed failed:", error);
+        console.error("Seed failed:", error);
         process.exit(1);
     }
 };

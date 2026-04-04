@@ -44,14 +44,22 @@ const PricingConfigSchema = new mongoose_1.Schema({
         type: mongoose_1.Types.ObjectId,
         required: true,
     },
+    firstTenDayPrices: {
+        type: [Number],
+        required: true,
+        validate: {
+            validator: (value) => Array.isArray(value) && value.length === 10,
+            message: "firstTenDayPrices must contain exactly 10 day prices",
+        },
+    },
     pricePerHour: {
         type: Number,
-        required: true,
         min: 0,
+        default: undefined,
     },
     discountRules: {
         type: [DiscountRuleSchema],
-        default: [],
+        default: undefined,
     },
 }, { timestamps: true });
 exports.PricingConfig = mongoose_1.default.model("PricingConfig", PricingConfigSchema);

@@ -7,8 +7,10 @@ export interface IDiscountRule {
 
 export interface IPricingConfig extends Document {
   businessId: ObjectId;
-  pricePerHour: number;
-  discountRules: IDiscountRule[];
+  firstTenDayPrices: number[];
+  // Legacy fields kept optional so older configs can still be read/migrated.
+  pricePerHour?: number;
+  discountRules?: IDiscountRule[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,14 +29,22 @@ const PricingConfigSchema = new Schema<IPricingConfig>(
       type: Types.ObjectId,
       required: true,
     },
+    firstTenDayPrices: {
+      type: [Number],
+      required: true,
+      validate: {
+        validator: (value: number[]) => Array.isArray(value) && value.length === 10,
+        message: "firstTenDayPrices must contain exactly 10 day prices",
+      },
+    },
     pricePerHour: {
       type: Number,
-      required: true,
       min: 0,
+      default: undefined,
     },
     discountRules: {
       type: [DiscountRuleSchema],
-      default: [],
+      default: undefined,
     },
   },
   { timestamps: true },

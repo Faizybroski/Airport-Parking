@@ -23,7 +23,7 @@ const getPricingConfig = async (req, res, next) => {
     try {
         const businessId = req.businessId;
         const config = await pricing_service_1.pricingService.getConfig(businessId);
-        res.json({ success: true, data: config.pricePerHour });
+        res.json({ success: true, data: config.firstTenDayPrices[0] ?? 0 });
     }
     catch (error) {
         next(error);

@@ -16,8 +16,8 @@ exports.getPricingConfig = getPricingConfig;
 const updatePricingConfig = async (req, res, next) => {
     try {
         const businessId = req.businessId;
-        const { pricePerHour, discountRules } = req.body;
-        const config = await pricing_service_1.pricingService.updateConfig(businessId, pricePerHour, discountRules);
+        const { firstTenDayPrices } = req.body;
+        const config = await pricing_service_1.pricingService.updateConfig(businessId, firstTenDayPrices);
         res.json({ success: true, data: config });
     }
     catch (error) {

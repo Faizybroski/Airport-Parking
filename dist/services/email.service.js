@@ -41,6 +41,8 @@ class EmailService {
         const totalHours = (booking.bookedEndTime.getTime() - booking.bookedStartTime.getTime()) /
             (1000 * 60 * 60);
         const duration = (0, helpers_1.formatDuration)(totalHours);
+        const bookedDays = booking.bookedDays ??
+            (0, helpers_1.calculateChargeableDays)(booking.bookedStartTime, booking.bookedEndTime);
         const html = `
     <!DOCTYPE html>
     <html>
@@ -96,6 +98,10 @@ class EmailService {
             <tr class="detail-row">
               <td class="label">Duration</td>
               <td class="value">${duration}</td>
+            </tr>
+            <tr class="detail-row">
+              <td class="label">Booked Days</td>
+              <td class="value">${(0, helpers_1.formatDayCount)(bookedDays)}</td>
             </tr>
           </table>
 

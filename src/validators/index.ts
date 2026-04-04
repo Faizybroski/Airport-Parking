@@ -46,15 +46,9 @@ export const adminLoginSchema = z.object({
 });
 
 export const pricingConfigSchema = z.object({
-  pricePerHour: z.number().min(0, "Price must be >= 0"),
-  discountRules: z
-    .array(
-      z.object({
-        minDays: z.number().int().min(1),
-        percentage: z.number().min(0).max(100),
-      }),
-    )
-    .default([]),
+  firstTenDayPrices: z
+    .array(z.number().min(0, "Price must be >= 0"))
+    .length(10, "Exactly 10 day prices are required"),
 });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;

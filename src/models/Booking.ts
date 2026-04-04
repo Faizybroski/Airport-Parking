@@ -8,7 +8,7 @@ import type { BookingStatus } from "../utils/bookingLifecycle";
 
 export type { BookingStatus } from "../utils/bookingLifecycle";
 
-export type PaymentStatus = 'awaiting_payment' | 'paid';
+export type PaymentStatus = "awaiting_payment" | "paid";
 
 export interface IBooking extends Document {
   businessId: Types.ObjectId;
@@ -31,10 +31,17 @@ export interface IBooking extends Document {
   paymentStatus: PaymentStatus;
   stripeSessionId?: string;
   price: number;
-  overtimeHours: number;
+  bookedDays: number;
+  overtimeDays: number;
   overtimePrice: number;
   totalPrice: number;
-  pricePerHour: number;
+  firstTenDayPricesSnapshot: number[];
+  day11To30Increment: number;
+  day31PlusIncrement: number;
+  // Legacy fields kept optional for older bookings created before the
+  // day-based tariff migration.
+  overtimeHours?: number;
+  pricePerHour?: number;
   discountPercent: number;
   createdAt: Date;
   updatedAt: Date;
@@ -74,15 +81,23 @@ const BookingSchema = new Schema<IBooking>(
     },
     paymentStatus: {
       type: String,
-      enum: ['awaiting_payment', 'paid'],
-      default: 'paid',
+      enum: ["awaiting_payment", "paid"],
+      default: "paid",
     },
     stripeSessionId: { type: String, default: null },
     price: { type: Number, required: true },
-    overtimeHours: { type: Number, default: 0 },
+    bookedDays: { type: Number, required: true, min: 1, default: 1 },
+    overtimeDays: { type: Number, default: 0 },
     overtimePrice: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true },
-    pricePerHour: { type: Number, required: true },
+    firstTenDayPricesSnapshot: {
+      type: [Number],
+      default: [],
+    },
+    day11To30Increment: { type: Number, default: 3 },
+    day31PlusIncrement: { type: Number, default: 2 },
+    overtimeHours: { type: Number, default: 0 },
+    pricePerHour: { type: Number, default: 0 },
     discountPercent: { type: Number, default: 0 },
   },
   {
@@ -120,8 +135,8 @@ BookingSchema.virtual("timeRemainingHours").get(function (this: IBooking) {
   return getBookingLifecycleState(this).timeRemainingHours;
 });
 
-BookingSchema.virtual("uptimeHours").get(function (this: IBooking) {
-  return getBookingLifecycleState(this).uptimeHours;
+BookingSchema.virtual("uptimeDays").get(function (this: IBooking) {
+  return getBookingLifecycleState(this).uptimeDays;
 });
 
 BookingSchema.virtual("uptimePrice").get(function (this: IBooking) {

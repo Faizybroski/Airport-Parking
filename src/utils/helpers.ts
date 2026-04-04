@@ -1,11 +1,11 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 /**
  * Generate a unique tracking number: PPK-XXXXXX
  */
 export const generateTrackingNumber = (): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let result = 'PPK-';
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "PPK-";
   for (let i = 0; i < 6; i++) {
     result += chars.charAt(crypto.randomInt(chars.length));
   }
@@ -21,10 +21,15 @@ export const calculateHours = (start: Date, end: Date): number => {
 };
 
 /**
- * Convert hours to days (float)
+ * Convert a date range into billable days using whole-day charging.
  */
-export const hoursToDays = (hours: number): number => {
-  return hours / 24;
+export const calculateChargeableDays = (start: Date, end: Date): number => {
+  const hours = calculateHours(start, end);
+  if (hours <= 0) {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil(hours / 24));
 };
 
 /**
@@ -33,14 +38,17 @@ export const hoursToDays = (hours: number): number => {
 export const formatDuration = (hours: number): string => {
   const days = Math.floor(hours / 24);
   const remainingHours = Math.round(hours % 24);
-  if (days === 0) return `${remainingHours} hour${remainingHours !== 1 ? 's' : ''}`;
-  if (remainingHours === 0) return `${days} day${days !== 1 ? 's' : ''}`;
-  return `${days} day${days !== 1 ? 's' : ''} ${remainingHours} hour${remainingHours !== 1 ? 's' : ''}`;
+  if (days === 0) return `${remainingHours} hour${remainingHours !== 1 ? "s" : ""}`;
+  if (remainingHours === 0) return `${days} day${days !== 1 ? "s" : ""}`;
+  return `${days} day${days !== 1 ? "s" : ""} ${remainingHours} hour${remainingHours !== 1 ? "s" : ""}`;
 };
+
+export const formatDayCount = (days: number): string =>
+  `${days} day${days !== 1 ? "s" : ""}`;
 
 /**
  * Format currency (GBP)
  */
 export const formatPrice = (price: number): string => {
-  return `£${price.toFixed(2)}`;
+  return `Â£${price.toFixed(2)}`;
 };

@@ -1,21 +1,31 @@
 import { IPricingConfig } from "../models/PricingConfig";
-export interface PriceCalculation {
+export declare const FIRST_TEN_DAYS_COUNT = 10;
+export declare const DAY_11_TO_30_INCREMENT = 3;
+export declare const DAY_31_PLUS_INCREMENT = 2;
+export interface DailyPricingSnapshot {
+    firstTenDayPrices: number[];
+    day11To30Increment: number;
+    day31PlusIncrement: number;
+}
+export interface PriceCalculation extends DailyPricingSnapshot {
     totalHours: number;
     totalDays: number;
-    pricePerHour: number;
     basePrice: number;
-    discountPercent: number;
-    discountAmount: number;
     finalPrice: number;
 }
 export interface OvertimeCalculation {
     bookedHours: number;
     actualHours: number;
-    overtimeHours: number;
+    bookedDays: number;
+    actualDays: number;
+    overtimeDays: number;
     overtimePrice: number;
     newTotalPrice: number;
 }
 declare class PricingService {
+    getPricingSnapshot(firstTenDayPrices: number[]): DailyPricingSnapshot;
+    isDailySnapshot(snapshot?: Partial<DailyPricingSnapshot> | null): boolean;
+    calculateTotalPriceForDays(totalDays: number, snapshot: DailyPricingSnapshot): number;
     /**
      * Get current pricing config
      */
@@ -23,18 +33,20 @@ declare class PricingService {
     /**
      * Update or create pricing config
      */
-    updateConfig(businessId: string, pricePerHour: number, discountRules: {
-        minDays: number;
-        percentage: number;
-    }[]): Promise<IPricingConfig>;
+    updateConfig(businessId: string, firstTenDayPrices: number[]): Promise<IPricingConfig>;
     /**
      * Calculate price for a booking
      */
     calculatePrice(businessId: string, startTime: Date, endTime: Date): Promise<PriceCalculation>;
     /**
-     * Calculate overtime price
+     * Calculate extra daily charges for late pickup.
      */
-    calculateOvertime(bookedStartTime: Date, bookedEndTime: Date, actualExitTime: Date, originalPrice: number, pricePerHour: number): OvertimeCalculation;
+    calculateOvertime(bookedStartTime: Date, bookedEndTime: Date, actualExitTime: Date, originalPrice: number, snapshot: DailyPricingSnapshot, bookedDays?: number): OvertimeCalculation;
+    /**
+     * Legacy hourly overtime calculation kept for older bookings created before
+     * the day-based tariff migration.
+     */
+    calculateLegacyOvertime(bookedStartTime: Date, bookedEndTime: Date, actualExitTime: Date, originalPrice: number, pricePerHour: number): OvertimeCalculation;
 }
 export declare const pricingService: PricingService;
 export {};

@@ -69,15 +69,23 @@ const BookingSchema = new mongoose_1.Schema({
     },
     paymentStatus: {
         type: String,
-        enum: ['awaiting_payment', 'paid'],
-        default: 'paid',
+        enum: ["awaiting_payment", "paid"],
+        default: "paid",
     },
     stripeSessionId: { type: String, default: null },
     price: { type: Number, required: true },
-    overtimeHours: { type: Number, default: 0 },
+    bookedDays: { type: Number, required: true, min: 1, default: 1 },
+    overtimeDays: { type: Number, default: 0 },
     overtimePrice: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true },
-    pricePerHour: { type: Number, required: true },
+    firstTenDayPricesSnapshot: {
+        type: [Number],
+        default: [],
+    },
+    day11To30Increment: { type: Number, default: 3 },
+    day31PlusIncrement: { type: Number, default: 2 },
+    overtimeHours: { type: Number, default: 0 },
+    pricePerHour: { type: Number, default: 0 },
     discountPercent: { type: Number, default: 0 },
 }, {
     timestamps: true,
@@ -105,8 +113,8 @@ BookingSchema.virtual("timeUntilStartHours").get(function () {
 BookingSchema.virtual("timeRemainingHours").get(function () {
     return (0, bookingLifecycle_1.getBookingLifecycleState)(this).timeRemainingHours;
 });
-BookingSchema.virtual("uptimeHours").get(function () {
-    return (0, bookingLifecycle_1.getBookingLifecycleState)(this).uptimeHours;
+BookingSchema.virtual("uptimeDays").get(function () {
+    return (0, bookingLifecycle_1.getBookingLifecycleState)(this).uptimeDays;
 });
 BookingSchema.virtual("uptimePrice").get(function () {
     return (0, bookingLifecycle_1.getBookingLifecycleState)(this).uptimePrice;

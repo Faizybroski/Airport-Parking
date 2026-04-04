@@ -22,12 +22,8 @@ export const updatePricingConfig = async (
 ): Promise<void> => {
   try {
     const businessId = req.businessId!;
-    const { pricePerHour, discountRules } = req.body;
-    const config = await pricingService.updateConfig(
-      businessId,
-      pricePerHour,
-      discountRules,
-    );
+    const { firstTenDayPrices } = req.body;
+    const config = await pricingService.updateConfig(businessId, firstTenDayPrices);
     res.json({ success: true, data: config });
   } catch (error) {
     next(error);

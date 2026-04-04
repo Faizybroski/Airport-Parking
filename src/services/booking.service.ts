@@ -62,8 +62,13 @@ class BookingService {
       paymentStatus: "awaiting_payment",
       price: priceCalc.finalPrice,
       totalPrice: priceCalc.finalPrice,
-      pricePerHour: priceCalc.pricePerHour,
-      discountPercent: priceCalc.discountPercent,
+      bookedDays: priceCalc.totalDays,
+      firstTenDayPricesSnapshot: priceCalc.firstTenDayPrices,
+      day11To30Increment: priceCalc.day11To30Increment,
+      day31PlusIncrement: priceCalc.day31PlusIncrement,
+      pricePerHour: 0,
+      discountPercent: 0,
+      overtimeDays: 0,
       overtimeHours: 0,
       overtimePrice: 0,
     });
@@ -197,20 +202,37 @@ class BookingService {
       booking.status = status;
       booking.actualExitTime = exitTime;
 
-      const overtime = pricingService.calculateOvertime(
-        booking.bookedStartTime,
-        booking.bookedEndTime,
-        exitTime,
-        booking.price,
-        booking.pricePerHour,
-      );
+      const overtime = pricingService.isDailySnapshot({
+        firstTenDayPrices: booking.firstTenDayPricesSnapshot,
+      })
+        ? pricingService.calculateOvertime(
+            booking.bookedStartTime,
+            booking.bookedEndTime,
+            exitTime,
+            booking.price,
+            {
+              firstTenDayPrices: booking.firstTenDayPricesSnapshot,
+              day11To30Increment: booking.day11To30Increment,
+              day31PlusIncrement: booking.day31PlusIncrement,
+            },
+            booking.bookedDays,
+          )
+        : pricingService.calculateLegacyOvertime(
+            booking.bookedStartTime,
+            booking.bookedEndTime,
+            exitTime,
+            booking.price,
+            booking.pricePerHour ?? 0,
+          );
 
-      booking.overtimeHours = overtime.overtimeHours;
+      booking.overtimeDays = overtime.overtimeDays;
+      booking.overtimeHours = 0;
       booking.overtimePrice = overtime.overtimePrice;
       booking.totalPrice = overtime.newTotalPrice;
     } else {
       booking.status = status;
       booking.actualExitTime = null;
+      booking.overtimeDays = 0;
       booking.overtimeHours = 0;
       booking.overtimePrice = 0;
       booking.totalPrice = booking.price;
@@ -331,8 +353,9 @@ class BookingService {
       "Actual Exit Time",
       "Status",
       "Payment Status",
+      "Booked Days",
       "Price (£)",
-      "Overtime Hours",
+      "Overtime Days",
       "Total Price (£)",
       "Created At",
     ];
@@ -351,8 +374,9 @@ class BookingService {
       b.actualExitTime ? new Date(b.actualExitTime).toISOString() : "",
       b.status,
       b.paymentStatus,
+      String(b.bookedDays ?? 0),
       b.price.toFixed(2),
-      b.overtimeHours.toFixed(1),
+      Number(b.overtimeDays ?? 0).toFixed(0),
       b.totalPrice.toFixed(2),
       new Date(b.createdAt).toISOString(),
     ]);

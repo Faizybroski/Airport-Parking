@@ -41,12 +41,8 @@ exports.adminLoginSchema = zod_1.z.object({
     password: zod_1.z.string().min(6, "Password must be at least 6 characters"),
 });
 exports.pricingConfigSchema = zod_1.z.object({
-    pricePerHour: zod_1.z.number().min(0, "Price must be >= 0"),
-    discountRules: zod_1.z
-        .array(zod_1.z.object({
-        minDays: zod_1.z.number().int().min(1),
-        percentage: zod_1.z.number().min(0).max(100),
-    }))
-        .default([]),
+    firstTenDayPrices: zod_1.z
+        .array(zod_1.z.number().min(0, "Price must be >= 0"))
+        .length(10, "Exactly 10 day prices are required"),
 });
 //# sourceMappingURL=index.js.map

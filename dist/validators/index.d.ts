@@ -97,29 +97,11 @@ export declare const adminLoginSchema: z.ZodObject<{
     password: string;
 }>;
 export declare const pricingConfigSchema: z.ZodObject<{
-    pricePerHour: z.ZodNumber;
-    discountRules: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        minDays: z.ZodNumber;
-        percentage: z.ZodNumber;
-    }, "strip", z.ZodTypeAny, {
-        minDays: number;
-        percentage: number;
-    }, {
-        minDays: number;
-        percentage: number;
-    }>, "many">>;
+    firstTenDayPrices: z.ZodArray<z.ZodNumber, "many">;
 }, "strip", z.ZodTypeAny, {
-    pricePerHour: number;
-    discountRules: {
-        minDays: number;
-        percentage: number;
-    }[];
+    firstTenDayPrices: number[];
 }, {
-    pricePerHour: number;
-    discountRules?: {
-        minDays: number;
-        percentage: number;
-    }[] | undefined;
+    firstTenDayPrices: number[];
 }>;
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>;

@@ -6,10 +6,15 @@ export interface BookingLifecycleSource {
     bookedStartTime: Date;
     bookedEndTime: Date;
     actualExitTime?: Date | null;
-    overtimeHours: number;
+    bookedDays?: number;
+    overtimeDays?: number;
+    overtimeHours?: number;
     overtimePrice: number;
     totalPrice: number;
-    pricePerHour: number;
+    firstTenDayPricesSnapshot?: number[];
+    day11To30Increment?: number;
+    day31PlusIncrement?: number;
+    pricePerHour?: number;
 }
 export interface BookingLifecycleState {
     statusLabel: string;
@@ -19,7 +24,7 @@ export interface BookingLifecycleState {
     isOvertimeRunning: boolean;
     timeUntilStartHours: number;
     timeRemainingHours: number;
-    uptimeHours: number;
+    uptimeDays: number;
     uptimePrice: number;
     currentTotalPrice: number;
     lateChargeMode: LateChargeMode;

@@ -26,7 +26,7 @@ export const getPricingConfig = async (
   try {
     const businessId = req.businessId!;
     const config = await pricingService.getConfig(businessId);
-    res.json({ success: true, data: config.pricePerHour });
+    res.json({ success: true, data: config.firstTenDayPrices[0] ?? 0 });
   } catch (error) {
     next(error);
   }

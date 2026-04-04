@@ -1,7 +1,12 @@
 import nodemailer from "nodemailer";
 import { config } from "../config";
 import { IBooking } from "../models/Booking";
-import { formatDuration, formatPrice } from "../utils/helpers";
+import {
+  calculateChargeableDays,
+  formatDayCount,
+  formatDuration,
+  formatPrice,
+} from "../utils/helpers";
 
 class EmailService {
   private transporter: nodemailer.Transporter;
@@ -47,6 +52,9 @@ class EmailService {
       (booking.bookedEndTime.getTime() - booking.bookedStartTime.getTime()) /
       (1000 * 60 * 60);
     const duration = formatDuration(totalHours);
+    const bookedDays =
+      booking.bookedDays ??
+      calculateChargeableDays(booking.bookedStartTime, booking.bookedEndTime);
 
     const html = `
     <!DOCTYPE html>
@@ -103,6 +111,10 @@ class EmailService {
             <tr class="detail-row">
               <td class="label">Duration</td>
               <td class="value">${duration}</td>
+            </tr>
+            <tr class="detail-row">
+              <td class="label">Booked Days</td>
+              <td class="value">${formatDayCount(bookedDays)}</td>
             </tr>
           </table>
 
@@ -175,3 +187,4 @@ class EmailService {
 }
 
 export const emailService = new EmailService();
+

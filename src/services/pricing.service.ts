@@ -1,31 +1,97 @@
 import { PricingConfig, IPricingConfig } from "../models/PricingConfig";
-import { calculateHours, hoursToDays } from "../utils/helpers";
+import { calculateChargeableDays, calculateHours } from "../utils/helpers";
 import { AppError } from "../middleware/errorHandler";
 
-export interface PriceCalculation {
+export const FIRST_TEN_DAYS_COUNT = 10;
+export const DAY_11_TO_30_INCREMENT = 3;
+export const DAY_31_PLUS_INCREMENT = 2;
+
+export interface DailyPricingSnapshot {
+  firstTenDayPrices: number[];
+  day11To30Increment: number;
+  day31PlusIncrement: number;
+}
+
+export interface PriceCalculation extends DailyPricingSnapshot {
   totalHours: number;
   totalDays: number;
-  pricePerHour: number;
   basePrice: number;
-  discountPercent: number;
-  discountAmount: number;
   finalPrice: number;
 }
 
 export interface OvertimeCalculation {
   bookedHours: number;
   actualHours: number;
-  overtimeHours: number;
+  bookedDays: number;
+  actualDays: number;
+  overtimeDays: number;
   overtimePrice: number;
   newTotalPrice: number;
 }
 
+const roundToTwoDecimals = (value: number): number =>
+  Math.round(value * 100) / 100;
+
+const normalizeFirstTenDayPrices = (prices: number[]): number[] =>
+  prices.slice(0, FIRST_TEN_DAYS_COUNT).map((price) => roundToTwoDecimals(price));
+
+const deriveLegacyFirstTenDayPrices = (config: IPricingConfig): number[] => {
+  if (
+    Array.isArray(config.firstTenDayPrices) &&
+    config.firstTenDayPrices.length === FIRST_TEN_DAYS_COUNT
+  ) {
+    return normalizeFirstTenDayPrices(config.firstTenDayPrices);
+  }
+
+  const legacyHourlyPrice = config.pricePerHour ?? 0;
+  return Array.from({ length: FIRST_TEN_DAYS_COUNT }, (_, index) =>
+    roundToTwoDecimals(legacyHourlyPrice * 24 * (index + 1)),
+  );
+};
+
 class PricingService {
+  getPricingSnapshot(firstTenDayPrices: number[]): DailyPricingSnapshot {
+    return {
+      firstTenDayPrices: normalizeFirstTenDayPrices(firstTenDayPrices),
+      day11To30Increment: DAY_11_TO_30_INCREMENT,
+      day31PlusIncrement: DAY_31_PLUS_INCREMENT,
+    };
+  }
+
+  isDailySnapshot(snapshot?: Partial<DailyPricingSnapshot> | null): boolean {
+    return (
+      Array.isArray(snapshot?.firstTenDayPrices) &&
+      snapshot.firstTenDayPrices.length === FIRST_TEN_DAYS_COUNT
+    );
+  }
+
+  calculateTotalPriceForDays(
+    totalDays: number,
+    snapshot: DailyPricingSnapshot,
+  ): number {
+    if (totalDays <= 0) {
+      return 0;
+    }
+
+    if (totalDays <= FIRST_TEN_DAYS_COUNT) {
+      return roundToTwoDecimals(snapshot.firstTenDayPrices[totalDays - 1] ?? 0);
+    }
+
+    const dayTenPrice = snapshot.firstTenDayPrices[FIRST_TEN_DAYS_COUNT - 1] ?? 0;
+    const daysFrom11To30 = Math.min(totalDays, 30) - FIRST_TEN_DAYS_COUNT;
+    const daysFrom31Plus = Math.max(0, totalDays - 30);
+
+    return roundToTwoDecimals(
+      dayTenPrice +
+        daysFrom11To30 * snapshot.day11To30Increment +
+        daysFrom31Plus * snapshot.day31PlusIncrement,
+    );
+  }
+
   /**
    * Get current pricing config
    */
   async getConfig(businessId: string): Promise<IPricingConfig> {
-    // const config = await PricingConfig.findOne().sort({ createdAt: -1 });
     const config = await PricingConfig.findOne({ businessId }).sort({
       createdAt: -1,
     });
@@ -36,6 +102,14 @@ class PricingService {
         500,
       );
     }
+
+    if (
+      !Array.isArray(config.firstTenDayPrices) ||
+      config.firstTenDayPrices.length !== FIRST_TEN_DAYS_COUNT
+    ) {
+      config.firstTenDayPrices = deriveLegacyFirstTenDayPrices(config);
+    }
+
     return config;
   }
 
@@ -44,26 +118,26 @@ class PricingService {
    */
   async updateConfig(
     businessId: string,
-    pricePerHour: number,
-    discountRules: { minDays: number; percentage: number }[],
+    firstTenDayPrices: number[],
   ): Promise<IPricingConfig> {
-    // Sort discount rules by minDays ascending
-    const sortedRules = [...discountRules].sort(
-      (a, b) => a.minDays - b.minDays,
-    );
+    if (firstTenDayPrices.length !== FIRST_TEN_DAYS_COUNT) {
+      throw new AppError("Exactly 10 day prices are required.", 400);
+    }
+
+    const normalizedPrices = normalizeFirstTenDayPrices(firstTenDayPrices);
 
     let config = await PricingConfig.findOne({ businessId }).sort({
       createdAt: -1,
     });
     if (config) {
-      config.pricePerHour = pricePerHour;
-      config.discountRules = sortedRules;
+      config.firstTenDayPrices = normalizedPrices;
+      config.pricePerHour = undefined;
+      config.discountRules = undefined;
       await config.save();
     } else {
       config = await PricingConfig.create({
         businessId,
-        pricePerHour,
-        discountRules: sortedRules,
+        firstTenDayPrices: normalizedPrices,
       });
     }
     return config;
@@ -78,38 +152,58 @@ class PricingService {
     endTime: Date,
   ): Promise<PriceCalculation> {
     const config = await this.getConfig(businessId);
-
+    const snapshot = this.getPricingSnapshot(config.firstTenDayPrices);
     const totalHours = calculateHours(startTime, endTime);
-    const totalDays = hoursToDays(totalHours);
-    const pricePerHour = config.pricePerHour;
-
-    // Find best matching discount tier
-    let discountPercent = 0;
-    for (const rule of config.discountRules) {
-      if (totalDays >= rule.minDays) {
-        discountPercent = rule.percentage;
-      }
-    }
-
-    const basePrice = totalHours * pricePerHour;
-    const discountAmount = basePrice * (discountPercent / 100);
-    const finalPrice = Math.round((basePrice - discountAmount) * 100) / 100;
+    const totalDays = calculateChargeableDays(startTime, endTime);
+    const finalPrice = this.calculateTotalPriceForDays(totalDays, snapshot);
 
     return {
-      totalHours: Math.round(totalHours * 100) / 100,
-      totalDays: Math.round(totalDays * 100) / 100,
-      pricePerHour,
-      basePrice: Math.round(basePrice * 100) / 100,
-      discountPercent,
-      discountAmount: Math.round(discountAmount * 100) / 100,
+      totalHours: roundToTwoDecimals(totalHours),
+      totalDays,
+      basePrice: finalPrice,
       finalPrice,
+      ...snapshot,
     };
   }
 
   /**
-   * Calculate overtime price
+   * Calculate extra daily charges for late pickup.
    */
   calculateOvertime(
+    bookedStartTime: Date,
+    bookedEndTime: Date,
+    actualExitTime: Date,
+    originalPrice: number,
+    snapshot: DailyPricingSnapshot,
+    bookedDays?: number,
+  ): OvertimeCalculation {
+    const bookedHours = calculateHours(bookedStartTime, bookedEndTime);
+    const actualHours = calculateHours(bookedStartTime, actualExitTime);
+    const normalizedBookedDays =
+      bookedDays ?? calculateChargeableDays(bookedStartTime, bookedEndTime);
+    const actualDays = calculateChargeableDays(bookedStartTime, actualExitTime);
+    const overtimeDays = Math.max(0, actualDays - normalizedBookedDays);
+    const newTotalPrice = this.calculateTotalPriceForDays(actualDays, snapshot);
+    const overtimePrice = roundToTwoDecimals(
+      Math.max(0, newTotalPrice - originalPrice),
+    );
+
+    return {
+      bookedHours: roundToTwoDecimals(bookedHours),
+      actualHours: roundToTwoDecimals(actualHours),
+      bookedDays: normalizedBookedDays,
+      actualDays,
+      overtimeDays,
+      overtimePrice,
+      newTotalPrice: roundToTwoDecimals(newTotalPrice),
+    };
+  }
+
+  /**
+   * Legacy hourly overtime calculation kept for older bookings created before
+   * the day-based tariff migration.
+   */
+  calculateLegacyOvertime(
     bookedStartTime: Date,
     bookedEndTime: Date,
     actualExitTime: Date,
@@ -119,15 +213,17 @@ class PricingService {
     const bookedHours = calculateHours(bookedStartTime, bookedEndTime);
     const actualHours = calculateHours(bookedStartTime, actualExitTime);
     const overtimeHours = calculateHours(bookedEndTime, actualExitTime);
-    const overtimePrice =
-      Math.round(overtimeHours * pricePerHour * 100) / 100;
-    const newTotalPrice =
-      Math.round((originalPrice + overtimePrice) * 100) / 100;
+    const overtimePrice = roundToTwoDecimals(overtimeHours * pricePerHour);
+    const newTotalPrice = roundToTwoDecimals(originalPrice + overtimePrice);
+    const bookedDays = calculateChargeableDays(bookedStartTime, bookedEndTime);
+    const actualDays = calculateChargeableDays(bookedStartTime, actualExitTime);
 
     return {
-      bookedHours: Math.round(bookedHours * 100) / 100,
-      actualHours: Math.round(actualHours * 100) / 100,
-      overtimeHours: Math.round(overtimeHours * 100) / 100,
+      bookedHours: roundToTwoDecimals(bookedHours),
+      actualHours: roundToTwoDecimals(actualHours),
+      bookedDays,
+      actualDays,
+      overtimeDays: Math.max(0, actualDays - bookedDays),
       overtimePrice,
       newTotalPrice,
     };

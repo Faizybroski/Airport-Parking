@@ -7,13 +7,14 @@ export declare const generateTrackingNumber: () => string;
  */
 export declare const calculateHours: (start: Date, end: Date) => number;
 /**
- * Convert hours to days (float)
+ * Convert a date range into billable days using whole-day charging.
  */
-export declare const hoursToDays: (hours: number) => number;
+export declare const calculateChargeableDays: (start: Date, end: Date) => number;
 /**
  * Format duration to readable string
  */
 export declare const formatDuration: (hours: number) => string;
+export declare const formatDayCount: (days: number) => string;
 /**
  * Format currency (GBP)
  */

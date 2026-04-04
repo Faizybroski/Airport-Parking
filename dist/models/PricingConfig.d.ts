@@ -5,8 +5,9 @@ export interface IDiscountRule {
 }
 export interface IPricingConfig extends Document {
     businessId: ObjectId;
-    pricePerHour: number;
-    discountRules: IDiscountRule[];
+    firstTenDayPrices: number[];
+    pricePerHour?: number;
+    discountRules?: IDiscountRule[];
     createdAt: Date;
     updatedAt: Date;
 }

@@ -55,7 +55,7 @@ exports.formatDayCount = formatDayCount;
  * Format currency (GBP)
  */
 const formatPrice = (price) => {
-    return `Â£${price.toFixed(2)}`;
+    return `£${price.toFixed(2)}`;
 };
 exports.formatPrice = formatPrice;
 //# sourceMappingURL=helpers.js.map

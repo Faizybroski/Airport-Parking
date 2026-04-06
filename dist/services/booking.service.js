@@ -10,11 +10,18 @@ const Business_1 = require("../models/Business");
 const pricing_service_1 = require("./pricing.service");
 const email_service_1 = require("./email.service");
 const helpers_1 = require("../utils/helpers");
+const xlsx_1 = require("../utils/xlsx");
 const errorHandler_1 = require("../middleware/errorHandler");
 const bookingLifecycle_1 = require("../utils/bookingLifecycle");
+const MAX_BOOKINGS_PAGE_SIZE = 100;
+const formatTimestampForExport = (value) => {
+    if (!value) {
+        return "";
+    }
+    return value.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+};
 class BookingService {
     async createBooking(businessId, data) {
-        // Check if booking is enabled for this business
         const business = await Business_1.Business.findById(businessId);
         if (!business) {
             throw new errorHandler_1.AppError("Business not found", 404);
@@ -25,7 +32,6 @@ class BookingService {
         const startTime = new Date(data.bookedStartTime);
         const endTime = new Date(data.bookedEndTime);
         const priceCalc = await pricing_service_1.pricingService.calculatePrice(businessId, startTime, endTime);
-        // Generate unique tracking number
         let trackingNumber;
         let exists = true;
         do {
@@ -53,9 +59,10 @@ class BookingService {
             price: priceCalc.finalPrice,
             totalPrice: priceCalc.finalPrice,
             bookedDays: priceCalc.totalDays,
-            firstTenDayPricesSnapshot: priceCalc.firstTenDayPrices,
-            day11To30Increment: priceCalc.day11To30Increment,
-            day31PlusIncrement: priceCalc.day31PlusIncrement,
+            pricingRulesSnapshot: priceCalc.pricingRules,
+            firstTenDayPricesSnapshot: [],
+            day11To30Increment: 0,
+            day31PlusIncrement: 0,
             pricePerHour: 0,
             discountPercent: 0,
             overtimeDays: 0,
@@ -69,14 +76,14 @@ class BookingService {
         await Booking_1.Booking.findByIdAndUpdate(bookingId, { stripeSessionId: sessionId });
     }
     async confirmPayment(sessionId) {
-        const booking = await Booking_1.Booking.findOneAndUpdate({ stripeSessionId: sessionId, paymentStatus: 'awaiting_payment' }, { paymentStatus: 'paid' }, { new: true });
+        const booking = await Booking_1.Booking.findOneAndUpdate({ stripeSessionId: sessionId, paymentStatus: "awaiting_payment" }, { paymentStatus: "paid" }, { new: true });
         if (booking) {
             email_service_1.emailService.sendBookingConfirmation(booking).catch(console.error);
         }
         return booking;
     }
     async cancelPendingBooking(sessionId) {
-        await Booking_1.Booking.findOneAndUpdate({ stripeSessionId: sessionId, paymentStatus: 'awaiting_payment' }, { status: 'cancelled' });
+        await Booking_1.Booking.findOneAndUpdate({ stripeSessionId: sessionId, paymentStatus: "awaiting_payment" }, { status: "cancelled" });
     }
     async getBySessionId(sessionId) {
         return Booking_1.Booking.findOne({ stripeSessionId: sessionId });
@@ -91,28 +98,66 @@ class BookingService {
         }
         return booking;
     }
-    async getAllBookings(params) {
-        const { businessId, status, page = 1, limit = 20, search } = params;
-        const query = {};
-        if (businessId)
-            query.businessId = businessId;
-        if (status)
+    buildBookingsQuery({ businessId, status, search, }) {
+        const query = { businessId };
+        const normalizedSearch = search?.trim();
+        if (status) {
             query.status = status;
-        if (search) {
+        }
+        if (normalizedSearch) {
             query.$or = [
-                { trackingNumber: { $regex: search, $options: "i" } },
-                { userName: { $regex: search, $options: "i" } },
-                { userEmail: { $regex: search, $options: "i" } },
-                { carNumber: { $regex: search, $options: "i" } },
+                { trackingNumber: { $regex: normalizedSearch, $options: "i" } },
+                { userName: { $regex: normalizedSearch, $options: "i" } },
+                { userEmail: { $regex: normalizedSearch, $options: "i" } },
+                { carNumber: { $regex: normalizedSearch, $options: "i" } },
             ];
         }
+        return query;
+    }
+    buildSelectionQuery({ businessId, selectionMode, ids, excludeIds, search, status, }) {
+        if (selectionMode === "selected") {
+            return {
+                businessId,
+                _id: { $in: ids },
+            };
+        }
+        const query = this.buildBookingsQuery({
+            businessId,
+            status,
+            search,
+        });
+        if (excludeIds.length > 0) {
+            query._id = { $nin: excludeIds };
+        }
+        return query;
+    }
+    async getBookingsForSelection(selection) {
+        const query = this.buildSelectionQuery(selection);
+        const bookings = await Booking_1.Booking.find(query).sort({ createdAt: -1 });
+        if (bookings.length === 0) {
+            throw new errorHandler_1.AppError("No bookings matched the current selection.", 404);
+        }
+        return bookings;
+    }
+    async getAllBookings(params) {
+        const { businessId, status, page = 1, limit = 20, search } = params;
+        const query = this.buildBookingsQuery({ businessId, status, search });
+        const normalizedLimit = Math.min(MAX_BOOKINGS_PAGE_SIZE, Math.max(1, Math.trunc(limit)));
+        const requestedPage = Math.max(1, Math.trunc(page));
         const total = await Booking_1.Booking.countDocuments(query);
-        const totalPages = Math.ceil(total / limit);
+        const totalPages = Math.max(1, Math.ceil(total / normalizedLimit));
+        const currentPage = Math.min(requestedPage, totalPages);
         const bookings = await Booking_1.Booking.find(query)
             .sort({ createdAt: -1 })
-            .skip((page - 1) * limit)
-            .limit(limit);
-        return { bookings, total, page, totalPages };
+            .skip((currentPage - 1) * normalizedLimit)
+            .limit(normalizedLimit);
+        return {
+            bookings,
+            total,
+            page: currentPage,
+            totalPages,
+            limit: normalizedLimit,
+        };
     }
     async updateStatus(businessId, id, status, actualExitTime) {
         const booking = await Booking_1.Booking.findById(id);
@@ -139,15 +184,21 @@ class BookingService {
             }
             booking.status = status;
             booking.actualExitTime = exitTime;
-            const overtime = pricing_service_1.pricingService.isDailySnapshot({
-                firstTenDayPrices: booking.firstTenDayPricesSnapshot,
+            const overtime = pricing_service_1.pricingService.hasPricingRules({
+                pricingRules: booking.pricingRulesSnapshot,
             })
                 ? pricing_service_1.pricingService.calculateOvertime(booking.bookedStartTime, booking.bookedEndTime, exitTime, booking.price, {
-                    firstTenDayPrices: booking.firstTenDayPricesSnapshot,
-                    day11To30Increment: booking.day11To30Increment,
-                    day31PlusIncrement: booking.day31PlusIncrement,
+                    pricingRules: booking.pricingRulesSnapshot,
                 }, booking.bookedDays)
-                : pricing_service_1.pricingService.calculateLegacyOvertime(booking.bookedStartTime, booking.bookedEndTime, exitTime, booking.price, booking.pricePerHour ?? 0);
+                : pricing_service_1.pricingService.isDailySnapshot({
+                    firstTenDayPrices: booking.firstTenDayPricesSnapshot,
+                })
+                    ? pricing_service_1.pricingService.calculateOvertime(booking.bookedStartTime, booking.bookedEndTime, exitTime, booking.price, {
+                        firstTenDayPrices: booking.firstTenDayPricesSnapshot,
+                        day11To30Increment: booking.day11To30Increment,
+                        day31PlusIncrement: booking.day31PlusIncrement,
+                    }, booking.bookedDays)
+                    : pricing_service_1.pricingService.calculateLegacyOvertime(booking.bookedStartTime, booking.bookedEndTime, exitTime, booking.price, booking.pricePerHour ?? 0);
             booking.overtimeDays = overtime.overtimeDays;
             booking.overtimeHours = 0;
             booking.overtimePrice = overtime.overtimePrice;
@@ -177,8 +228,6 @@ class BookingService {
             Booking_1.Booking.countDocuments({ status: "upcoming", businessId }),
             Booking_1.Booking.countDocuments({ status: "completed", businessId }),
             Booking_1.Booking.countDocuments({ status: "cancelled", businessId }),
-            // Base online revenue: sum of the prepaid booking amount for paid,
-            // non-cancelled bookings.
             Booking_1.Booking.aggregate([
                 {
                     $match: {
@@ -189,7 +238,6 @@ class BookingService {
                 },
                 { $group: { _id: null, total: { $sum: "$price" } } },
             ]),
-            // Extra pickup revenue is finalized once the booking is completed.
             Booking_1.Booking.aggregate([
                 {
                     $match: {
@@ -224,54 +272,72 @@ class BookingService {
             bookingEnabled: business?.bookingEnabled !== false,
         };
     }
-    async exportBookingsCSV(businessId, status) {
-        const query = {};
-        if (businessId)
-            query.businessId = businessId;
-        if (status)
-            query.status = status;
-        const bookings = await Booking_1.Booking.find(query).sort({ createdAt: -1 });
-        const headers = [
-            "Tracking Number",
-            "Name",
-            "Email",
-            "Phone",
-            "Car Make",
-            "Car Model",
-            "Car Number",
-            "Car Color",
-            "Start Date",
-            "End Date",
-            "Actual Exit Time",
-            "Status",
-            "Payment Status",
-            "Booked Days",
-            "Price (£)",
-            "Overtime Days",
-            "Total Price (£)",
-            "Created At",
-        ];
-        const rows = bookings.map((b) => [
-            b.trackingNumber,
-            b.userName,
-            b.userEmail,
-            b.userPhone,
-            b.carMake,
-            b.carModel,
-            b.carNumber,
-            b.carColor,
-            new Date(b.bookedStartTime).toISOString(),
-            new Date(b.bookedEndTime).toISOString(),
-            b.actualExitTime ? new Date(b.actualExitTime).toISOString() : "",
-            b.status,
-            b.paymentStatus,
-            String(b.bookedDays ?? 0),
-            b.price.toFixed(2),
-            Number(b.overtimeDays ?? 0).toFixed(0),
-            b.totalPrice.toFixed(2),
-            new Date(b.createdAt).toISOString(),
-        ]);
-        return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    async exportBookingsExcel(selection) {
+        const bookings = await this.getBookingsForSelection(selection);
+        const sheet = {
+            name: "Bookings",
+            columns: [
+                { header: "Tracking Number", width: 18 },
+                { header: "Customer", width: 22 },
+                { header: "Email", width: 28 },
+                { header: "Phone", width: 18 },
+                { header: "Vehicle", width: 22 },
+                { header: "Registration", width: 16 },
+                { header: "Drop-off", width: 22 },
+                { header: "Pick-up", width: 22 },
+                { header: "Actual Exit", width: 22 },
+                { header: "Status", width: 14 },
+                { header: "Payment Status", width: 18 },
+                { header: "Booked Days", width: 14 },
+                { header: "Base Price", width: 14, type: "currency" },
+                { header: "Overtime Days", width: 14, type: "number" },
+                { header: "Overtime Amount", width: 16, type: "currency" },
+                { header: "Total Price", width: 14, type: "currency" },
+                { header: "Created At", width: 22 },
+            ],
+            rows: bookings.map((booking) => [
+                booking.trackingNumber,
+                booking.userName,
+                booking.userEmail,
+                booking.userPhone,
+                `${booking.carMake} ${booking.carModel}`.trim(),
+                booking.carNumber,
+                formatTimestampForExport(booking.bookedStartTime),
+                formatTimestampForExport(booking.bookedEndTime),
+                formatTimestampForExport(booking.actualExitTime),
+                booking.status,
+                booking.paymentStatus,
+                (0, helpers_1.formatDayCount)(booking.bookedDays ?? 0),
+                Number(booking.price ?? 0),
+                Number(booking.overtimeDays ?? 0),
+                Number(booking.overtimePrice ?? 0),
+                Number(booking.totalPrice ?? 0),
+                formatTimestampForExport(booking.createdAt),
+            ]),
+        };
+        return (0, xlsx_1.buildXlsxWorkbook)(sheet);
+    }
+    async deleteBooking(businessId, id) {
+        const booking = await Booking_1.Booking.findById(id);
+        if (!booking) {
+            throw new errorHandler_1.AppError("Booking not found", 404);
+        }
+        if (booking.businessId.toString() !== businessId) {
+            throw new errorHandler_1.AppError("You are not authorized to delete this booking", 403);
+        }
+        await Booking_1.Booking.deleteOne({ _id: id, businessId });
+    }
+    async bulkDeleteBookings(selection) {
+        const bookings = await this.getBookingsForSelection(selection);
+        const deletedIds = bookings.map((booking) => booking._id.toString());
+        await Booking_1.Booking.deleteMany({
+            businessId: selection.businessId,
+            _id: { $in: deletedIds },
+        });
+        return {
+            deletedCount: deletedIds.length,
+            deletedIds,
+        };
     }
 }
 exports.bookingService = new BookingService();

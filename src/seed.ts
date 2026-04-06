@@ -24,9 +24,28 @@ const seed = async () => {
     if (!existingConfig) {
       await PricingConfig.create({
         businessId: business._id,
-        firstTenDayPrices: [12, 20, 28, 36, 44, 52, 60, 68, 76, 84],
+        pricingRules: [
+          {
+            startDay: 1,
+            endDay: 10,
+            basePrice: 12,
+            dailyIncrement: 8,
+          },
+          {
+            startDay: 11,
+            endDay: 30,
+            basePrice: 87,
+            dailyIncrement: 3,
+          },
+          {
+            startDay: 31,
+            endDay: null,
+            basePrice: 146,
+            dailyIncrement: 2,
+          },
+        ],
       });
-      console.log("Pricing config created with the first 10 daily prices");
+      console.log("Pricing config created with rule-based daily pricing");
     } else {
       console.log("Pricing config already exists");
     }

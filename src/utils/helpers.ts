@@ -50,5 +50,5 @@ export const formatDayCount = (days: number): string =>
  * Format currency (GBP)
  */
 export const formatPrice = (price: number): string => {
-  return `Â£${price.toFixed(2)}`;
+  return `£${price.toFixed(2)}`;
 };

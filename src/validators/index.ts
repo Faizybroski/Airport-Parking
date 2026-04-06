@@ -45,13 +45,118 @@ export const adminLoginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-export const pricingConfigSchema = z.object({
-  firstTenDayPrices: z
-    .array(z.number().min(0, "Price must be >= 0"))
-    .length(10, "Exactly 10 day prices are required"),
-});
+const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid booking id");
+
+export const bookingBulkSelectionSchema = z
+  .object({
+    selectionMode: z.enum(["selected", "allMatching"]),
+    ids: z.array(objectIdSchema).optional().default([]),
+    excludeIds: z.array(objectIdSchema).optional().default([]),
+    search: z.string().trim().optional(),
+    status: z.enum(BOOKING_STATUS_VALUES).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.selectionMode === "selected" && data.ids.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ids"],
+        message: "Select at least one booking",
+      });
+    }
+  });
+
+const pricingRuleSchema = z
+  .object({
+    startDay: z.number().int("Start day must be a whole number").min(1),
+    endDay: z.number().int("End day must be a whole number").min(1).nullable().optional(),
+    basePrice: z.number().min(0, "Base price must be >= 0"),
+    dailyIncrement: z.number().min(0, "Daily increment must be >= 0"),
+  })
+  .superRefine((rule, ctx) => {
+    if (
+      rule.endDay !== null &&
+      rule.endDay !== undefined &&
+      rule.endDay < rule.startDay
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endDay"],
+        message: "End day must be greater than or equal to start day",
+      });
+    }
+  });
+
+export const pricingConfigSchema = z
+  .object({
+    pricingRules: z.array(pricingRuleSchema).min(1).optional(),
+    firstTenDayPrices: z
+      .array(z.number().min(0, "Price must be >= 0"))
+      .length(10, "Exactly 10 day prices are required")
+      .optional(),
+    day11To30Increment: z.number().min(0, "Increment must be >= 0").optional(),
+    day31PlusIncrement: z.number().min(0, "Increment must be >= 0").optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      (!data.pricingRules || data.pricingRules.length === 0) &&
+      !data.firstTenDayPrices
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pricingRules"],
+        message: "At least one pricing rule is required",
+      });
+      return;
+    }
+
+    if (!data.pricingRules?.length) {
+      return;
+    }
+
+    const sortedRules = [...data.pricingRules].sort(
+      (a, b) => a.startDay - b.startDay,
+    );
+
+    let expectedStartDay = 1;
+
+    sortedRules.forEach((rule, index) => {
+      if (rule.startDay !== expectedStartDay) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pricingRules", index, "startDay"],
+          message:
+            "Pricing rules must start at day 1 and continue without gaps",
+        });
+      }
+
+      const isLastRule = index === sortedRules.length - 1;
+
+      if (!isLastRule && (rule.endDay === null || rule.endDay === undefined)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pricingRules", index, "endDay"],
+          message: "Only the final pricing rule can be open-ended",
+        });
+        return;
+      }
+
+      if (!isLastRule) {
+        expectedStartDay = (rule.endDay as number) + 1;
+      }
+    });
+
+    const lastRule = sortedRules[sortedRules.length - 1];
+    if (lastRule.endDay !== null && lastRule.endDay !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pricingRules", sortedRules.length - 1, "endDay"],
+        message: "The final pricing rule must be open-ended",
+      });
+    }
+  });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>;
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
+export type BookingBulkSelectionInput = z.infer<typeof bookingBulkSelectionSchema>;
 export type PricingConfigInput = z.infer<typeof pricingConfigSchema>;

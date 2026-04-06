@@ -8,7 +8,51 @@ exports.FIRST_TEN_DAYS_COUNT = 10;
 exports.DAY_11_TO_30_INCREMENT = 3;
 exports.DAY_31_PLUS_INCREMENT = 2;
 const roundToTwoDecimals = (value) => Math.round(value * 100) / 100;
-const normalizeFirstTenDayPrices = (prices) => prices.slice(0, exports.FIRST_TEN_DAYS_COUNT).map((price) => roundToTwoDecimals(price));
+const normalizeFirstTenDayPrices = (prices) => prices
+    .slice(0, exports.FIRST_TEN_DAYS_COUNT)
+    .map((price) => roundToTwoDecimals(price));
+const normalizePricingRule = (rule) => ({
+    startDay: Math.trunc(rule.startDay),
+    endDay: rule.endDay === null || rule.endDay === undefined
+        ? null
+        : Math.trunc(rule.endDay),
+    basePrice: roundToTwoDecimals(rule.basePrice),
+    dailyIncrement: roundToTwoDecimals(rule.dailyIncrement),
+});
+const normalizePricingRules = (rules) => rules.map(normalizePricingRule).sort((a, b) => a.startDay - b.startDay);
+const validatePricingRules = (rules) => {
+    if (!Array.isArray(rules) || rules.length === 0) {
+        throw new errorHandler_1.AppError("At least one pricing rule is required.", 400);
+    }
+    let expectedStartDay = 1;
+    rules.forEach((rule, index) => {
+        if (!Number.isInteger(rule.startDay) || rule.startDay < 1) {
+            throw new errorHandler_1.AppError("Pricing rule start days must be whole numbers.", 400);
+        }
+        if (rule.endDay !== null &&
+            rule.endDay !== undefined &&
+            (!Number.isInteger(rule.endDay) || rule.endDay < rule.startDay)) {
+            throw new errorHandler_1.AppError("Pricing rule end days must be greater than or equal to start days.", 400);
+        }
+        if (rule.basePrice < 0 || rule.dailyIncrement < 0) {
+            throw new errorHandler_1.AppError("Pricing rule amounts cannot be negative.", 400);
+        }
+        if (rule.startDay !== expectedStartDay) {
+            throw new errorHandler_1.AppError("Pricing rules must start at day 1 and stay continuous without gaps.", 400);
+        }
+        const isLastRule = index === rules.length - 1;
+        if (!isLastRule && (rule.endDay === null || rule.endDay === undefined)) {
+            throw new errorHandler_1.AppError("Only the final pricing rule can leave the end day open-ended.", 400);
+        }
+        if (!isLastRule) {
+            expectedStartDay = rule.endDay + 1;
+        }
+    });
+    const lastRule = rules[rules.length - 1];
+    if (lastRule.endDay !== null && lastRule.endDay !== undefined) {
+        throw new errorHandler_1.AppError("The final pricing rule must be open-ended so every booking length has a price.", 400);
+    }
+};
 const deriveLegacyFirstTenDayPrices = (config) => {
     if (Array.isArray(config.firstTenDayPrices) &&
         config.firstTenDayPrices.length === exports.FIRST_TEN_DAYS_COUNT) {
@@ -17,31 +61,77 @@ const deriveLegacyFirstTenDayPrices = (config) => {
     const legacyHourlyPrice = config.pricePerHour ?? 0;
     return Array.from({ length: exports.FIRST_TEN_DAYS_COUNT }, (_, index) => roundToTwoDecimals(legacyHourlyPrice * 24 * (index + 1)));
 };
+const buildLegacyPricingRules = (firstTenDayPrices, day11To30Increment = exports.DAY_11_TO_30_INCREMENT, day31PlusIncrement = exports.DAY_31_PLUS_INCREMENT) => {
+    const normalizedFirstTen = normalizeFirstTenDayPrices(firstTenDayPrices);
+    const dayTenPrice = normalizedFirstTen[exports.FIRST_TEN_DAYS_COUNT - 1] ?? 0;
+    const day11Price = roundToTwoDecimals(dayTenPrice + day11To30Increment);
+    const day31Price = roundToTwoDecimals(dayTenPrice + 20 * day11To30Increment + day31PlusIncrement);
+    return [
+        ...normalizedFirstTen.map((price, index) => ({
+            startDay: index + 1,
+            endDay: index + 1,
+            basePrice: price,
+            dailyIncrement: 0,
+        })),
+        {
+            startDay: 11,
+            endDay: 30,
+            basePrice: day11Price,
+            dailyIncrement: roundToTwoDecimals(day11To30Increment),
+        },
+        {
+            startDay: 31,
+            endDay: null,
+            basePrice: day31Price,
+            dailyIncrement: roundToTwoDecimals(day31PlusIncrement),
+        },
+    ];
+};
 class PricingService {
-    getPricingSnapshot(firstTenDayPrices) {
-        return {
-            firstTenDayPrices: normalizeFirstTenDayPrices(firstTenDayPrices),
-            day11To30Increment: exports.DAY_11_TO_30_INCREMENT,
-            day31PlusIncrement: exports.DAY_31_PLUS_INCREMENT,
-        };
+    hasPricingRules(snapshot) {
+        return (Array.isArray(snapshot?.pricingRules) && snapshot.pricingRules.length > 0);
     }
     isDailySnapshot(snapshot) {
         return (Array.isArray(snapshot?.firstTenDayPrices) &&
             snapshot.firstTenDayPrices.length === exports.FIRST_TEN_DAYS_COUNT);
     }
+    resolvePricingRules(snapshot) {
+        const pricingRules = snapshot?.pricingRules;
+        if (Array.isArray(pricingRules) && pricingRules.length > 0) {
+            const rules = normalizePricingRules(pricingRules);
+            validatePricingRules(rules);
+            return rules;
+        }
+        const firstTenDayPrices = snapshot?.firstTenDayPrices;
+        if (Array.isArray(firstTenDayPrices) &&
+            firstTenDayPrices.length === exports.FIRST_TEN_DAYS_COUNT) {
+            return buildLegacyPricingRules(firstTenDayPrices, snapshot?.day11To30Increment, snapshot?.day31PlusIncrement);
+        }
+        return [];
+    }
+    getPricingSnapshot(config) {
+        const pricingRules = this.resolvePricingRules(this.hasPricingRules(config)
+            ? { pricingRules: config.pricingRules }
+            : {
+                firstTenDayPrices: config.firstTenDayPrices?.length === exports.FIRST_TEN_DAYS_COUNT
+                    ? config.firstTenDayPrices
+                    : deriveLegacyFirstTenDayPrices(config),
+            });
+        return { pricingRules };
+    }
     calculateTotalPriceForDays(totalDays, snapshot) {
         if (totalDays <= 0) {
             return 0;
         }
-        if (totalDays <= exports.FIRST_TEN_DAYS_COUNT) {
-            return roundToTwoDecimals(snapshot.firstTenDayPrices[totalDays - 1] ?? 0);
+        const pricingRules = this.resolvePricingRules(snapshot);
+        const rule = pricingRules.find((currentRule) => totalDays >= currentRule.startDay &&
+            (currentRule.endDay === null ||
+                currentRule.endDay === undefined ||
+                totalDays <= currentRule.endDay));
+        if (!rule) {
+            throw new errorHandler_1.AppError(`Pricing rules do not cover bookings of ${totalDays} days.`, 500);
         }
-        const dayTenPrice = snapshot.firstTenDayPrices[exports.FIRST_TEN_DAYS_COUNT - 1] ?? 0;
-        const daysFrom11To30 = Math.min(totalDays, 30) - exports.FIRST_TEN_DAYS_COUNT;
-        const daysFrom31Plus = Math.max(0, totalDays - 30);
-        return roundToTwoDecimals(dayTenPrice +
-            daysFrom11To30 * snapshot.day11To30Increment +
-            daysFrom31Plus * snapshot.day31PlusIncrement);
+        return roundToTwoDecimals(rule.basePrice + (totalDays - rule.startDay) * rule.dailyIncrement);
     }
     /**
      * Get current pricing config
@@ -53,25 +143,25 @@ class PricingService {
         if (!config) {
             throw new errorHandler_1.AppError("Pricing config not found. Please seed the database.", 500);
         }
-        if (!Array.isArray(config.firstTenDayPrices) ||
-            config.firstTenDayPrices.length !== exports.FIRST_TEN_DAYS_COUNT) {
-            config.firstTenDayPrices = deriveLegacyFirstTenDayPrices(config);
-        }
+        config.pricingRules = this.getPricingSnapshot(config).pricingRules;
         return config;
     }
     /**
      * Update or create pricing config
      */
-    async updateConfig(businessId, firstTenDayPrices) {
-        if (firstTenDayPrices.length !== exports.FIRST_TEN_DAYS_COUNT) {
-            throw new errorHandler_1.AppError("Exactly 10 day prices are required.", 400);
-        }
-        const normalizedPrices = normalizeFirstTenDayPrices(firstTenDayPrices);
+    async updateConfig(businessId, input) {
+        const pricingRules = Array.isArray(input.pricingRules) && input.pricingRules.length > 0
+            ? normalizePricingRules(input.pricingRules)
+            : Array.isArray(input.firstTenDayPrices)
+                ? buildLegacyPricingRules(input.firstTenDayPrices)
+                : [];
+        validatePricingRules(pricingRules);
         let config = await PricingConfig_1.PricingConfig.findOne({ businessId }).sort({
             createdAt: -1,
         });
         if (config) {
-            config.firstTenDayPrices = normalizedPrices;
+            config.pricingRules = pricingRules;
+            config.firstTenDayPrices = undefined;
             config.pricePerHour = undefined;
             config.discountRules = undefined;
             await config.save();
@@ -79,7 +169,7 @@ class PricingService {
         else {
             config = await PricingConfig_1.PricingConfig.create({
                 businessId,
-                firstTenDayPrices: normalizedPrices,
+                pricingRules,
             });
         }
         return config;
@@ -89,7 +179,7 @@ class PricingService {
      */
     async calculatePrice(businessId, startTime, endTime) {
         const config = await this.getConfig(businessId);
-        const snapshot = this.getPricingSnapshot(config.firstTenDayPrices);
+        const snapshot = this.getPricingSnapshot(config);
         const totalHours = (0, helpers_1.calculateHours)(startTime, endTime);
         const totalDays = (0, helpers_1.calculateChargeableDays)(startTime, endTime);
         const finalPrice = this.calculateTotalPriceForDays(totalDays, snapshot);

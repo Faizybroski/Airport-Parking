@@ -23,7 +23,8 @@ const getPricingConfig = async (req, res, next) => {
     try {
         const businessId = req.businessId;
         const config = await pricing_service_1.pricingService.getConfig(businessId);
-        res.json({ success: true, data: config.firstTenDayPrices[0] ?? 0 });
+        const startingDayPrice = pricing_service_1.pricingService.calculateTotalPriceForDays(1, pricing_service_1.pricingService.getPricingSnapshot(config));
+        res.json({ success: true, data: startingDayPrice });
     }
     catch (error) {
         next(error);

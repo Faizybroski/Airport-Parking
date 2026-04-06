@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Booking = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const bookingLifecycle_1 = require("../utils/bookingLifecycle");
+const PricingConfig_1 = require("./PricingConfig");
 const BookingSchema = new mongoose_1.Schema({
     businessId: {
         type: mongoose_1.Schema.Types.ObjectId,
@@ -78,6 +79,10 @@ const BookingSchema = new mongoose_1.Schema({
     overtimeDays: { type: Number, default: 0 },
     overtimePrice: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true },
+    pricingRulesSnapshot: {
+        type: [PricingConfig_1.PricingRuleSchema],
+        default: [],
+    },
     firstTenDayPricesSnapshot: {
         type: [Number],
         default: [],

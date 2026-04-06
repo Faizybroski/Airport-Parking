@@ -14,8 +14,10 @@ router.use(auth_1.authMiddleware);
 router.get("/dashboard", business_1.attachBusinessId, admin_controller_1.getDashboard);
 // Bookings
 router.get("/bookings", business_1.attachBusinessId, admin_controller_1.getAllBookings);
-router.get("/bookings/export", business_1.attachBusinessId, admin_controller_1.exportBookings);
+router.post("/bookings/export", business_1.attachBusinessId, (0, validate_1.validate)(validators_1.bookingBulkSelectionSchema), admin_controller_1.exportBookings);
+router.post("/bookings/bulk-delete", business_1.attachBusinessId, (0, validate_1.validate)(validators_1.bookingBulkSelectionSchema), admin_controller_1.bulkDeleteBookings);
 router.patch("/bookings/:id/status", business_1.attachBusinessId, (0, validate_1.validate)(validators_1.updateBookingStatusSchema), admin_controller_1.updateBookingStatus);
+router.delete("/bookings/:id", business_1.attachBusinessId, admin_controller_1.deleteBooking);
 // Booking toggle
 router.get("/booking-toggle", business_1.attachBusinessId, admin_controller_1.getBookingToggle);
 router.patch("/booking-toggle", business_1.attachBusinessId, admin_controller_1.setBookingToggle);

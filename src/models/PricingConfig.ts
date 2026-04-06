@@ -5,9 +5,19 @@ export interface IDiscountRule {
   percentage: number;
 }
 
+export interface IPricingRule {
+  startDay: number;
+  endDay?: number | null;
+  basePrice: number;
+  dailyIncrement: number;
+}
+
 export interface IPricingConfig extends Document {
   businessId: ObjectId;
-  firstTenDayPrices: number[];
+  pricingRules?: IPricingRule[];
+  firstTenDayPrices?: number[];
+  day11To30Increment?: number;
+  day31PlusIncrement?: number;
   // Legacy fields kept optional so older configs can still be read/migrated.
   pricePerHour?: number;
   discountRules?: IDiscountRule[];
@@ -23,19 +33,46 @@ const DiscountRuleSchema = new Schema<IDiscountRule>(
   { _id: false },
 );
 
+export const PricingRuleSchema = new Schema<IPricingRule>(
+  {
+    startDay: { type: Number, required: true, min: 1 },
+    endDay: { type: Number, min: 1, default: null },
+    basePrice: { type: Number, required: true, min: 0 },
+    dailyIncrement: { type: Number, required: true, min: 0, default: 0 },
+  },
+  { _id: false },
+);
+
 const PricingConfigSchema = new Schema<IPricingConfig>(
   {
     businessId: {
       type: Types.ObjectId,
       required: true,
     },
+    pricingRules: {
+      type: [PricingRuleSchema],
+      default: undefined,
+    },
     firstTenDayPrices: {
       type: [Number],
-      required: true,
+      required: false,
+      default: undefined,
       validate: {
-        validator: (value: number[]) => Array.isArray(value) && value.length === 10,
+        validator: (value?: number[]) =>
+          value === undefined ||
+          (Array.isArray(value) && value.length === 10),
         message: "firstTenDayPrices must contain exactly 10 day prices",
       },
+    },
+    day11To30Increment: {
+      type: Number,
+      min: 0,
+      default: undefined,
+    },
+    day31PlusIncrement: {
+      type: Number,
+      min: 0,
+      default: undefined,
     },
     pricePerHour: {
       type: Number,

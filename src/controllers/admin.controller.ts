@@ -71,15 +71,65 @@ export const exportBookings = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status } = req.query;
     const businessId = req.businessId!;
-    const csv = await bookingService.exportBookingsCSV(
+    const workbook = await bookingService.exportBookingsExcel({
       businessId,
-      status as BookingStatus | undefined,
+      ...req.body,
+    });
+    const fileName = `bookings-${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=bookings.csv");
-    res.send(csv);
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+    res.send(workbook);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteBooking = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    if (!id || Array.isArray(id)) {
+      return next(new AppError("Invalid id", 400));
+    }
+
+    const businessId = req.businessId!;
+    await bookingService.deleteBooking(businessId, id);
+
+    res.json({
+      success: true,
+      data: { id },
+      message: "Booking permanently deleted.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDeleteBookings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const businessId = req.businessId!;
+    const result = await bookingService.bulkDeleteBookings({
+      businessId,
+      ...req.body,
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: `${result.deletedCount} booking(s) permanently deleted.`,
+    });
   } catch (error) {
     next(error);
   }

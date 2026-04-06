@@ -22,6 +22,50 @@ const getBookingLifecycleState = (booking, now = new Date()) => {
     const timeRemainingHours = booking.status === "active"
         ? roundToTwoDecimals((0, helpers_1.calculateHours)(now, booking.bookedEndTime))
         : 0;
+    if (pricing_service_1.pricingService.hasPricingRules({
+        pricingRules: booking.pricingRulesSnapshot,
+    })) {
+        const snapshot = {
+            pricingRules: booking.pricingRulesSnapshot,
+        };
+        const bookedDays = booking.bookedDays ??
+            (0, helpers_1.calculateChargeableDays)(booking.bookedStartTime, booking.bookedEndTime);
+        const liveActualDays = booking.status === "active" && now > booking.bookedEndTime
+            ? (0, helpers_1.calculateChargeableDays)(booking.bookedStartTime, now)
+            : bookedDays;
+        const liveExtraDays = Math.max(0, liveActualDays - bookedDays);
+        const liveTotalPrice = pricing_service_1.pricingService.calculateTotalPriceForDays(liveActualDays, snapshot);
+        const liveExtraPrice = roundToTwoDecimals(Math.max(0, liveTotalPrice - booking.totalPrice));
+        const finalizedExtraDays = roundToTwoDecimals(booking.overtimeDays ?? 0);
+        const isFinalizedLateCharge = booking.status === "completed" && finalizedExtraDays > 0;
+        const lateChargeMode = isFinalizedLateCharge
+            ? "finalized"
+            : liveExtraDays > 0
+                ? "pending"
+                : "none";
+        const uptimeDays = isFinalizedLateCharge
+            ? finalizedExtraDays
+            : roundToTwoDecimals(liveExtraDays);
+        const uptimePrice = isFinalizedLateCharge
+            ? roundToTwoDecimals(booking.overtimePrice)
+            : liveExtraPrice;
+        const currentTotalPrice = lateChargeMode === "pending"
+            ? roundToTwoDecimals(booking.totalPrice + uptimePrice)
+            : roundToTwoDecimals(booking.totalPrice);
+        return {
+            statusLabel: (0, exports.getBookingStatusLabel)(booking.status),
+            canActivate,
+            canComplete,
+            canCancel,
+            isOvertimeRunning: lateChargeMode === "pending",
+            timeUntilStartHours,
+            timeRemainingHours,
+            uptimeDays,
+            uptimePrice,
+            currentTotalPrice,
+            lateChargeMode,
+        };
+    }
     if (pricing_service_1.pricingService.isDailySnapshot({
         firstTenDayPrices: booking.firstTenDayPricesSnapshot,
     })) {

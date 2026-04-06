@@ -1,13 +1,16 @@
-import { IPricingConfig } from "../models/PricingConfig";
+import { IPricingConfig, IPricingRule } from "../models/PricingConfig";
 export declare const FIRST_TEN_DAYS_COUNT = 10;
 export declare const DAY_11_TO_30_INCREMENT = 3;
 export declare const DAY_31_PLUS_INCREMENT = 2;
-export interface DailyPricingSnapshot {
-    firstTenDayPrices: number[];
-    day11To30Increment: number;
-    day31PlusIncrement: number;
+export interface LegacyPricingSnapshot {
+    firstTenDayPrices?: number[];
+    day11To30Increment?: number;
+    day31PlusIncrement?: number;
 }
-export interface PriceCalculation extends DailyPricingSnapshot {
+export interface PricingSnapshot {
+    pricingRules: IPricingRule[];
+}
+export interface PriceCalculation extends PricingSnapshot {
     totalHours: number;
     totalDays: number;
     basePrice: number;
@@ -22,10 +25,17 @@ export interface OvertimeCalculation {
     overtimePrice: number;
     newTotalPrice: number;
 }
+export interface UpdatePricingConfigInput {
+    pricingRules?: IPricingRule[];
+    firstTenDayPrices?: number[];
+}
+type ResolvablePricingSnapshot = Partial<PricingSnapshot & LegacyPricingSnapshot>;
 declare class PricingService {
-    getPricingSnapshot(firstTenDayPrices: number[]): DailyPricingSnapshot;
-    isDailySnapshot(snapshot?: Partial<DailyPricingSnapshot> | null): boolean;
-    calculateTotalPriceForDays(totalDays: number, snapshot: DailyPricingSnapshot): number;
+    hasPricingRules(snapshot?: Partial<PricingSnapshot> | null): boolean;
+    isDailySnapshot(snapshot?: Partial<LegacyPricingSnapshot> | null): boolean;
+    private resolvePricingRules;
+    getPricingSnapshot(config: Pick<IPricingConfig, "pricingRules" | "firstTenDayPrices" | "pricePerHour">): PricingSnapshot;
+    calculateTotalPriceForDays(totalDays: number, snapshot: ResolvablePricingSnapshot): number;
     /**
      * Get current pricing config
      */
@@ -33,7 +43,7 @@ declare class PricingService {
     /**
      * Update or create pricing config
      */
-    updateConfig(businessId: string, firstTenDayPrices: number[]): Promise<IPricingConfig>;
+    updateConfig(businessId: string, input: UpdatePricingConfigInput): Promise<IPricingConfig>;
     /**
      * Calculate price for a booking
      */
@@ -41,7 +51,7 @@ declare class PricingService {
     /**
      * Calculate extra daily charges for late pickup.
      */
-    calculateOvertime(bookedStartTime: Date, bookedEndTime: Date, actualExitTime: Date, originalPrice: number, snapshot: DailyPricingSnapshot, bookedDays?: number): OvertimeCalculation;
+    calculateOvertime(bookedStartTime: Date, bookedEndTime: Date, actualExitTime: Date, originalPrice: number, snapshot: ResolvablePricingSnapshot, bookedDays?: number): OvertimeCalculation;
     /**
      * Legacy hourly overtime calculation kept for older bookings created before
      * the day-based tariff migration.

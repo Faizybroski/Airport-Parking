@@ -96,15 +96,101 @@ export declare const adminLoginSchema: z.ZodObject<{
     email: string;
     password: string;
 }>;
-export declare const pricingConfigSchema: z.ZodObject<{
-    firstTenDayPrices: z.ZodArray<z.ZodNumber, "many">;
+export declare const bookingBulkSelectionSchema: z.ZodEffects<z.ZodObject<{
+    selectionMode: z.ZodEnum<["selected", "allMatching"]>;
+    ids: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString, "many">>>;
+    excludeIds: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString, "many">>>;
+    search: z.ZodOptional<z.ZodString>;
+    status: z.ZodOptional<z.ZodEnum<["upcoming", "active", "completed", "cancelled"]>>;
 }, "strip", z.ZodTypeAny, {
-    firstTenDayPrices: number[];
+    selectionMode: "selected" | "allMatching";
+    ids: string[];
+    excludeIds: string[];
+    search?: string | undefined;
+    status?: "upcoming" | "active" | "completed" | "cancelled" | undefined;
 }, {
-    firstTenDayPrices: number[];
+    selectionMode: "selected" | "allMatching";
+    search?: string | undefined;
+    status?: "upcoming" | "active" | "completed" | "cancelled" | undefined;
+    ids?: string[] | undefined;
+    excludeIds?: string[] | undefined;
+}>, {
+    selectionMode: "selected" | "allMatching";
+    ids: string[];
+    excludeIds: string[];
+    search?: string | undefined;
+    status?: "upcoming" | "active" | "completed" | "cancelled" | undefined;
+}, {
+    selectionMode: "selected" | "allMatching";
+    search?: string | undefined;
+    status?: "upcoming" | "active" | "completed" | "cancelled" | undefined;
+    ids?: string[] | undefined;
+    excludeIds?: string[] | undefined;
+}>;
+export declare const pricingConfigSchema: z.ZodEffects<z.ZodObject<{
+    pricingRules: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodObject<{
+        startDay: z.ZodNumber;
+        endDay: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        basePrice: z.ZodNumber;
+        dailyIncrement: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        startDay: number;
+        basePrice: number;
+        dailyIncrement: number;
+        endDay?: number | null | undefined;
+    }, {
+        startDay: number;
+        basePrice: number;
+        dailyIncrement: number;
+        endDay?: number | null | undefined;
+    }>, {
+        startDay: number;
+        basePrice: number;
+        dailyIncrement: number;
+        endDay?: number | null | undefined;
+    }, {
+        startDay: number;
+        basePrice: number;
+        dailyIncrement: number;
+        endDay?: number | null | undefined;
+    }>, "many">>;
+    firstTenDayPrices: z.ZodOptional<z.ZodArray<z.ZodNumber, "many">>;
+}, "strip", z.ZodTypeAny, {
+    pricingRules?: {
+        startDay: number;
+        basePrice: number;
+        dailyIncrement: number;
+        endDay?: number | null | undefined;
+    }[] | undefined;
+    firstTenDayPrices?: number[] | undefined;
+}, {
+    pricingRules?: {
+        startDay: number;
+        basePrice: number;
+        dailyIncrement: number;
+        endDay?: number | null | undefined;
+    }[] | undefined;
+    firstTenDayPrices?: number[] | undefined;
+}>, {
+    pricingRules?: {
+        startDay: number;
+        basePrice: number;
+        dailyIncrement: number;
+        endDay?: number | null | undefined;
+    }[] | undefined;
+    firstTenDayPrices?: number[] | undefined;
+}, {
+    pricingRules?: {
+        startDay: number;
+        basePrice: number;
+        dailyIncrement: number;
+        endDay?: number | null | undefined;
+    }[] | undefined;
+    firstTenDayPrices?: number[] | undefined;
 }>;
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>;
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
+export type BookingBulkSelectionInput = z.infer<typeof bookingBulkSelectionSchema>;
 export type PricingConfigInput = z.infer<typeof pricingConfigSchema>;
 //# sourceMappingURL=index.d.ts.map

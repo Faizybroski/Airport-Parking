@@ -33,22 +33,34 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PricingConfig = void 0;
+exports.PricingConfig = exports.PricingRuleSchema = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const DiscountRuleSchema = new mongoose_1.Schema({
     minDays: { type: Number, required: true },
     percentage: { type: Number, required: true, min: 0, max: 100 },
+}, { _id: false });
+exports.PricingRuleSchema = new mongoose_1.Schema({
+    startDay: { type: Number, required: true, min: 1 },
+    endDay: { type: Number, min: 1, default: null },
+    basePrice: { type: Number, required: true, min: 0 },
+    dailyIncrement: { type: Number, required: true, min: 0, default: 0 },
 }, { _id: false });
 const PricingConfigSchema = new mongoose_1.Schema({
     businessId: {
         type: mongoose_1.Types.ObjectId,
         required: true,
     },
+    pricingRules: {
+        type: [exports.PricingRuleSchema],
+        default: undefined,
+    },
     firstTenDayPrices: {
         type: [Number],
-        required: true,
+        required: false,
+        default: undefined,
         validate: {
-            validator: (value) => Array.isArray(value) && value.length === 10,
+            validator: (value) => value === undefined ||
+                (Array.isArray(value) && value.length === 10),
             message: "firstTenDayPrices must contain exactly 10 day prices",
         },
     },

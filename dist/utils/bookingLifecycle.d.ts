@@ -1,3 +1,4 @@
+import { IPricingRule } from "../models/PricingConfig";
 export declare const BOOKING_STATUS_VALUES: readonly ["upcoming", "active", "completed", "cancelled"];
 export type BookingStatus = (typeof BOOKING_STATUS_VALUES)[number];
 export type LateChargeMode = "none" | "pending" | "finalized";
@@ -11,6 +12,7 @@ export interface BookingLifecycleSource {
     overtimeHours?: number;
     overtimePrice: number;
     totalPrice: number;
+    pricingRulesSnapshot?: IPricingRule[];
     firstTenDayPricesSnapshot?: number[];
     day11To30Increment?: number;
     day31PlusIncrement?: number;

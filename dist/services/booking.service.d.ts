@@ -1,5 +1,15 @@
 import { IBooking, BookingStatus } from "../models/Booking";
-import { CreateBookingInput } from "../validators";
+import { BookingBulkSelectionInput, CreateBookingInput } from "../validators";
+type BookingListParams = {
+    businessId: string;
+    status?: BookingStatus;
+    page?: number;
+    limit?: number;
+    search?: string;
+};
+type BookingSelectionScope = BookingBulkSelectionInput & {
+    businessId: string;
+};
 declare class BookingService {
     createBooking(businessId: string, data: CreateBookingInput): Promise<IBooking>;
     attachStripeSession(bookingId: string, sessionId: string): Promise<void>;
@@ -7,17 +17,15 @@ declare class BookingService {
     cancelPendingBooking(sessionId: string): Promise<void>;
     getBySessionId(sessionId: string): Promise<IBooking | null>;
     getByTrackingNumber(businessId: string, trackingNumber: string): Promise<IBooking>;
-    getAllBookings(params: {
-        businessId: string;
-        status?: BookingStatus;
-        page?: number;
-        limit?: number;
-        search?: string;
-    }): Promise<{
+    private buildBookingsQuery;
+    private buildSelectionQuery;
+    private getBookingsForSelection;
+    getAllBookings(params: BookingListParams): Promise<{
         bookings: IBooking[];
         total: number;
         page: number;
         totalPages: number;
+        limit: number;
     }>;
     updateStatus(businessId: string, id: string, status: BookingStatus, actualExitTime?: string): Promise<IBooking>;
     getDashboardStats(businessId: string): Promise<{
@@ -34,7 +42,12 @@ declare class BookingService {
         todayBookings: number;
         bookingEnabled: boolean;
     }>;
-    exportBookingsCSV(businessId: string, status?: BookingStatus): Promise<string>;
+    exportBookingsExcel(selection: BookingSelectionScope): Promise<Buffer>;
+    deleteBooking(businessId: string, id: string): Promise<void>;
+    bulkDeleteBookings(selection: BookingSelectionScope): Promise<{
+        deletedCount: number;
+        deletedIds: string[];
+    }>;
 }
 export declare const bookingService: BookingService;
 export {};

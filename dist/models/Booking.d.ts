@@ -1,4 +1,5 @@
 import mongoose, { Document, Types } from "mongoose";
+import { IPricingRule } from "./PricingConfig";
 import type { BookingStatus } from "../utils/bookingLifecycle";
 export type { BookingStatus } from "../utils/bookingLifecycle";
 export type PaymentStatus = "awaiting_payment" | "paid";
@@ -27,6 +28,7 @@ export interface IBooking extends Document {
     overtimeDays: number;
     overtimePrice: number;
     totalPrice: number;
+    pricingRulesSnapshot: IPricingRule[];
     firstTenDayPricesSnapshot: number[];
     day11To30Increment: number;
     day31PlusIncrement: number;

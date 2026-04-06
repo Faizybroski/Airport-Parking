@@ -1,5 +1,6 @@
 import { calculateChargeableDays, calculateHours } from "./helpers";
 import { pricingService } from "../services/pricing.service";
+import { IPricingRule } from "../models/PricingConfig";
 
 export const BOOKING_STATUS_VALUES = [
   "upcoming",
@@ -22,6 +23,7 @@ export interface BookingLifecycleSource {
   overtimeHours?: number;
   overtimePrice: number;
   totalPrice: number;
+  pricingRulesSnapshot?: IPricingRule[];
   firstTenDayPricesSnapshot?: number[];
   day11To30Increment?: number;
   day31PlusIncrement?: number;
@@ -66,6 +68,67 @@ export const getBookingLifecycleState = (
     booking.status === "active"
       ? roundToTwoDecimals(calculateHours(now, booking.bookedEndTime))
       : 0;
+
+  if (
+    pricingService.hasPricingRules({
+      pricingRules: booking.pricingRulesSnapshot,
+    })
+  ) {
+    const snapshot = {
+      pricingRules: booking.pricingRulesSnapshot!,
+    };
+    const bookedDays =
+      booking.bookedDays ??
+      calculateChargeableDays(booking.bookedStartTime, booking.bookedEndTime);
+    const liveActualDays =
+      booking.status === "active" && now > booking.bookedEndTime
+        ? calculateChargeableDays(booking.bookedStartTime, now)
+        : bookedDays;
+    const liveExtraDays = Math.max(0, liveActualDays - bookedDays);
+    const liveTotalPrice = pricingService.calculateTotalPriceForDays(
+      liveActualDays,
+      snapshot,
+    );
+    const liveExtraPrice = roundToTwoDecimals(
+      Math.max(0, liveTotalPrice - booking.totalPrice),
+    );
+    const finalizedExtraDays = roundToTwoDecimals(booking.overtimeDays ?? 0);
+    const isFinalizedLateCharge =
+      booking.status === "completed" && finalizedExtraDays > 0;
+
+    const lateChargeMode: LateChargeMode = isFinalizedLateCharge
+      ? "finalized"
+      : liveExtraDays > 0
+        ? "pending"
+        : "none";
+
+    const uptimeDays = isFinalizedLateCharge
+      ? finalizedExtraDays
+      : roundToTwoDecimals(liveExtraDays);
+
+    const uptimePrice = isFinalizedLateCharge
+      ? roundToTwoDecimals(booking.overtimePrice)
+      : liveExtraPrice;
+
+    const currentTotalPrice =
+      lateChargeMode === "pending"
+        ? roundToTwoDecimals(booking.totalPrice + uptimePrice)
+        : roundToTwoDecimals(booking.totalPrice);
+
+    return {
+      statusLabel: getBookingStatusLabel(booking.status),
+      canActivate,
+      canComplete,
+      canCancel,
+      isOvertimeRunning: lateChargeMode === "pending",
+      timeUntilStartHours,
+      timeRemainingHours,
+      uptimeDays,
+      uptimePrice,
+      currentTotalPrice,
+      lateChargeMode,
+    };
+  }
 
   if (
     pricingService.isDailySnapshot({

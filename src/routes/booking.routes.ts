@@ -6,6 +6,7 @@ import {
   calculatePrice,
   getBookingStatus,
 } from "../controllers/booking.controller";
+import { getPublicPricingBreakdown } from "../controllers/pricing.controller";
 import { validate } from "../middleware/validate";
 import { createBookingSchema } from "../validators";
 import { attachBusinessId } from "../middleware/business";
@@ -20,6 +21,9 @@ router.get("/pricePerHour", attachBusinessId, getPricingConfig);
 
 // GET /api/bookings/price
 router.get("/price", attachBusinessId, calculatePrice);
+
+// GET /api/bookings/pricing?days=N — public per-day price breakdown
+router.get("/pricing", attachBusinessId, getPublicPricingBreakdown);
 
 // POST /api/bookings
 router.post("/", attachBusinessId, validate(createBookingSchema), createBooking);

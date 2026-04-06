@@ -4,6 +4,8 @@ import {
   getAllBookings,
   updateBookingStatus,
   exportBookings,
+  deleteBooking,
+  bulkDeleteBookings,
   getBookingToggle,
   setBookingToggle,
 } from "../controllers/admin.controller";
@@ -15,6 +17,7 @@ import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { attachBusinessId } from "../middleware/business";
 import {
+  bookingBulkSelectionSchema,
   updateBookingStatusSchema,
   pricingConfigSchema,
 } from "../validators";
@@ -29,13 +32,25 @@ router.get("/dashboard", attachBusinessId, getDashboard);
 
 // Bookings
 router.get("/bookings", attachBusinessId, getAllBookings);
-router.get("/bookings/export", attachBusinessId, exportBookings);
+router.post(
+  "/bookings/export",
+  attachBusinessId,
+  validate(bookingBulkSelectionSchema),
+  exportBookings,
+);
+router.post(
+  "/bookings/bulk-delete",
+  attachBusinessId,
+  validate(bookingBulkSelectionSchema),
+  bulkDeleteBookings,
+);
 router.patch(
   "/bookings/:id/status",
   attachBusinessId,
   validate(updateBookingStatusSchema),
   updateBookingStatus,
 );
+router.delete("/bookings/:id", attachBusinessId, deleteBooking);
 
 // Booking toggle
 router.get("/booking-toggle", attachBusinessId, getBookingToggle);

@@ -4,6 +4,7 @@ import {
   getBookingLifecycleState,
   getBookingStatusLabel,
 } from "../utils/bookingLifecycle";
+import { IPricingRule, PricingRuleSchema } from "./PricingConfig";
 import type { BookingStatus } from "../utils/bookingLifecycle";
 
 export type { BookingStatus } from "../utils/bookingLifecycle";
@@ -35,6 +36,7 @@ export interface IBooking extends Document {
   overtimeDays: number;
   overtimePrice: number;
   totalPrice: number;
+  pricingRulesSnapshot: IPricingRule[];
   firstTenDayPricesSnapshot: number[];
   day11To30Increment: number;
   day31PlusIncrement: number;
@@ -90,6 +92,10 @@ const BookingSchema = new Schema<IBooking>(
     overtimeDays: { type: Number, default: 0 },
     overtimePrice: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true },
+    pricingRulesSnapshot: {
+      type: [PricingRuleSchema],
+      default: [],
+    },
     firstTenDayPricesSnapshot: {
       type: [Number],
       default: [],

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setBookingToggle = exports.getBookingToggle = exports.exportBookings = exports.updateBookingStatus = exports.getAllBookings = exports.getDashboard = void 0;
+exports.setBookingToggle = exports.getBookingToggle = exports.bulkDeleteBookings = exports.deleteBooking = exports.exportBookings = exports.updateBookingStatus = exports.getAllBookings = exports.getDashboard = void 0;
 const booking_service_1 = require("../services/booking.service");
 const Business_1 = require("../models/Business");
 const AppError_1 = __importDefault(require("../utils/AppError"));
@@ -54,18 +54,58 @@ const updateBookingStatus = async (req, res, next) => {
 exports.updateBookingStatus = updateBookingStatus;
 const exportBookings = async (req, res, next) => {
     try {
-        const { status } = req.query;
         const businessId = req.businessId;
-        const csv = await booking_service_1.bookingService.exportBookingsCSV(businessId, status);
-        res.setHeader("Content-Type", "text/csv");
-        res.setHeader("Content-Disposition", "attachment; filename=bookings.csv");
-        res.send(csv);
+        const workbook = await booking_service_1.bookingService.exportBookingsExcel({
+            businessId,
+            ...req.body,
+        });
+        const fileName = `bookings-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+        res.send(workbook);
     }
     catch (error) {
         next(error);
     }
 };
 exports.exportBookings = exportBookings;
+const deleteBooking = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        if (!id || Array.isArray(id)) {
+            return next(new AppError_1.default("Invalid id", 400));
+        }
+        const businessId = req.businessId;
+        await booking_service_1.bookingService.deleteBooking(businessId, id);
+        res.json({
+            success: true,
+            data: { id },
+            message: "Booking permanently deleted.",
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.deleteBooking = deleteBooking;
+const bulkDeleteBookings = async (req, res, next) => {
+    try {
+        const businessId = req.businessId;
+        const result = await booking_service_1.bookingService.bulkDeleteBookings({
+            businessId,
+            ...req.body,
+        });
+        res.json({
+            success: true,
+            data: result,
+            message: `${result.deletedCount} booking(s) permanently deleted.`,
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.bulkDeleteBookings = bulkDeleteBookings;
 /** GET /admin/booking-toggle — return current bookingEnabled state */
 const getBookingToggle = async (req, res, next) => {
     try {

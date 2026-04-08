@@ -20,12 +20,14 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. mobile apps, curl, Postman)
+      // Allow requests with no origin (e.g. server-to-server, curl, Postman)
       if (!origin) return callback(null, true);
       if (config.frontendUrls.includes(origin)) {
         return callback(null, true);
       }
-      callback(new Error(`CORS: origin ${origin} not allowed`));
+      // Return false (not an Error) so cors sends a proper 403, not a 500
+      console.warn(`CORS blocked: ${origin}`);
+      callback(null, false);
     },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "x-business-id"],

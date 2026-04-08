@@ -1,5 +1,5 @@
 import { contactEmailService } from "../services/mail.service";
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 
 export const contactController = async (req: Request, res: Response) => {
   try {
@@ -9,7 +9,10 @@ export const contactController = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    await contactEmailService.sendContactEmail(name, email, message);
+    // businessId is attached by attachBusinessId middleware on this route
+    const businessId = req.businessId!;
+
+    await contactEmailService.sendContactEmail(name, email, message, businessId);
 
     return res.status(200).json({ message: "Email sent successfully" });
   } catch (error) {

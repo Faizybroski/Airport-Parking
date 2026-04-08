@@ -1,21 +1,24 @@
 import nodemailer from "nodemailer";
+import { BusinessEmailConfig } from "./index";
 
-export const contactTransporter = nodemailer.createTransport({
-  host: process.env.CONTACT_SMTP_HOST,
-  port: Number(process.env.CONTACT_SMTP_PORT),
-  secure: true, // 465
-  auth: {
-    user: process.env.CONTACT_SMTP_USER,
-    pass: process.env.CONTACT_SMTP_PASS,
-  },
-});
+/**
+ * Creates a Nodemailer transporter from a BusinessEmailConfig.
+ * Called on-demand rather than once at startup so each business gets its own
+ * SMTP credentials.
+ */
+export const createTransporter = (cfg: BusinessEmailConfig, type: "booking" | "contact") => {
+  const user = type === "booking" ? cfg.bookingSmtpUser : cfg.contactSmtpUser;
+  const pass = type === "booking" ? cfg.bookingSmtpPass : cfg.contactSmtpPass;
 
-export const bookingTransporter = nodemailer.createTransport({
-  host: process.env.BOOKING_SMTP_HOST,
-  port: Number(process.env.BOOKING_SMTP_PORT),
-  secure: true,
-  auth: {
-    user: process.env.BOOKING_SMTP_USER,
-    pass: process.env.BOOKING_SMTP_PASS,
-  },
-});
+  if (!user || !pass) {
+    // Dev / unconfigured: log emails to console
+    return nodemailer.createTransport({ jsonTransport: true });
+  }
+
+  return nodemailer.createTransport({
+    host: cfg.smtpHost,
+    port: cfg.smtpPort,
+    secure: cfg.smtpPort === 465,
+    auth: { user, pass },
+  });
+};

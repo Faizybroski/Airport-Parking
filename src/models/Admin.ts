@@ -1,9 +1,11 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IAdmin extends Document {
   email: string;
   password: string;
   name: string;
+  /** The business this admin belongs to. Scopes all data access. */
+  businessId: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,8 +29,13 @@ const AdminSchema = new Schema<IAdmin>(
       required: true,
       trim: true,
     },
+    businessId: {
+      type: Schema.Types.ObjectId,
+      ref: "Business",
+      required: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export const Admin = mongoose.model<IAdmin>('Admin', AdminSchema);
+export const Admin = mongoose.model<IAdmin>("Admin", AdminSchema);

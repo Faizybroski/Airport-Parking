@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import Stripe from "stripe";
-import { config } from "../config";
+import { config, getBusinessEmailConfig } from "../config";
 import { bookingService } from "../services/booking.service";
 import { pricingService } from "../services/pricing.service";
 import { Business } from "../models/Business";
@@ -94,8 +94,8 @@ export const createCheckoutSession = async (
         },
       ],
       customer_email: booking.userEmail,
-      success_url: `${config.frontendUrl}/book/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${config.frontendUrl}/book/payment-cancelled`,
+      success_url: `${getBusinessEmailConfig(businessId).frontendUrl}/book/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${getBusinessEmailConfig(businessId).frontendUrl}/book/payment-cancelled`,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30-minute window
       metadata: {
         bookingId: (booking._id as unknown as string).toString(),

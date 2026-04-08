@@ -6,7 +6,9 @@ import { AppError } from "../middleware/errorHandler";
 
 class AuthService {
   /**
-   * Admin login
+   * Admin login — returns a JWT that includes the admin's businessId so the
+   * auth middleware can enforce business-scoped access without a DB lookup on
+   * every request.
    */
   async login(
     email: string,
@@ -22,16 +24,10 @@ class AuthService {
       throw new AppError("Invalid email or password", 401);
     }
 
-    // const token = jwt.sign({ id: admin._id }, config.jwtSecret, {
-    //   expiresIn: config.jwtExpiresIn,
-    // } as jwt.SignOptions);
-
     const token = jwt.sign(
-      { id: admin._id }, // or however your data looks
+      { id: admin._id, businessId: admin.businessId.toString() },
       config.jwtSecret,
-      {
-        expiresIn: config.jwtExpiresIn as jwt.SignOptions["expiresIn"],
-      },
+      { expiresIn: config.jwtExpiresIn as jwt.SignOptions["expiresIn"] },
     ) as unknown as string;
 
     return {
@@ -40,13 +36,12 @@ class AuthService {
         _id: admin._id,
         email: admin.email,
         name: admin.name,
+        businessId: admin.businessId,
       },
     };
   }
 
-  /**
-   * Get admin by ID
-   */
+  /** Get admin by ID (excludes password). */
   async getAdminById(id: string): Promise<IAdmin | null> {
     return await Admin.findById(id).select("-password");
   }

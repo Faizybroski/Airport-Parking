@@ -1,6 +1,6 @@
-import nodemailer from "nodemailer";
-import { config } from "../config";
 import { IBooking } from "../models/Booking";
+import { getBusinessEmailConfig } from "../config";
+import { createTransporter } from "../config/transporter";
 import {
   calculateChargeableDays,
   formatDayCount,
@@ -9,41 +9,16 @@ import {
 } from "../utils/helpers";
 
 class EmailService {
-  private transporter: nodemailer.Transporter;
-  private isConfigured: boolean;
-
-  constructor() {
-    this.isConfigured = !!(config.bookingSmtp.user && config.bookingSmtp.pass);
-
-    if (this.isConfigured) {
-      this.transporter = nodemailer.createTransport({
-        host: config.bookingSmtp.host,
-        port: config.bookingSmtp.port,
-        secure: config.bookingSmtp.port === 465,
-        auth: {
-          user: config.bookingSmtp.user,
-          pass: config.bookingSmtp.pass,
-        },
-      });
-    } else {
-      // Dev mode: log to console
-      this.transporter = nodemailer.createTransport({
-        jsonTransport: true,
-      });
-      console.log(
-        "📧 Email: SMTP not configured, emails will be logged to console.",
-      );
-    }
-  }
-
   async sendBookingConfirmation(booking: IBooking): Promise<void> {
-    const startDate = new Date(booking.bookedStartTime).toLocaleString(
-      "en-GB",
-      {
-        dateStyle: "full",
-        timeStyle: "short",
-      },
-    );
+    const businessId = booking.businessId.toString();
+    const cfg = getBusinessEmailConfig(businessId);
+    const transporter = createTransporter(cfg, "booking");
+    const isConfigured = !!(cfg.bookingSmtpUser && cfg.bookingSmtpPass);
+
+    const startDate = new Date(booking.bookedStartTime).toLocaleString("en-GB", {
+      dateStyle: "full",
+      timeStyle: "short",
+    });
     const endDate = new Date(booking.bookedEndTime).toLocaleString("en-GB", {
       dateStyle: "full",
       timeStyle: "short",
@@ -64,8 +39,7 @@ class EmailService {
             body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7fa; margin: 0; padding: 0; }
             .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
             .header { background: #ff8b338f; color: #fff; padding: 32px 24px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px;}
-            .header .prefix { font-weight: bold; font-size: 28px;}
-            .header .suffix { font-weight: normal; font-size: 28px;}
+            .header .brand { font-weight: bold; font-size: 28px; color: #fff; }
             .body-content { padding: 32px 24px; }
             .tracking-box { background: #ff8b338f; border: 2px dashed #fe6f09; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
             .tracking-box .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
@@ -76,7 +50,6 @@ class EmailService {
             .section-title { font-size: 16px; font-weight: 600; color: #fe6f09; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e8f0fe; }
             .price-box { background: #e8f4e8; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
             .price-box .amount { font-size: 32px; font-weight: bold; color: #2a7d2a; }
-            .slot-badge { display: inline-block; background: #fe6f09; color: #fff; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 14px; }
             .footer { background: #f8f9fa; padding: 20px 24px; text-align: center; font-size: 12px; color: #999; }
             table { width: 100%; }
             td { padding: 10px 0; }
@@ -85,11 +58,7 @@ class EmailService {
         <body>
           <div class="container">
             <div class="header">
-                <img src="https://www.parkpro.uk/logo.svg" >
-                <p class="logo">
-                  <span class="prefix">PARK</span>
-                  <span class="suffix">PRO</span>
-                </p>
+              <p class="brand">${cfg.brandName.toUpperCase()}</p>
             </div>
             <div class="body-content">
               <p>Dear <strong>${booking.userName}</strong>,</p>
@@ -160,7 +129,7 @@ class EmailService {
               <p style="font-size: 14px; color: #666;">If you have any questions, please don't hesitate to contact our support team.</p>
             </div>
             <div class="footer">
-              <p>© ${new Date().getFullYear()} ParkPro Airport Parking. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} ${cfg.brandName}. All rights reserved.</p>
               <p>This is an automated confirmation. Please do not reply to this email.</p>
             </div>
           </div>
@@ -169,18 +138,18 @@ class EmailService {
     `;
 
     const mailOptions = {
-      from: `"${config.emailFromName}" <${config.bookingEmailFrom}>`,
+      from: `"${cfg.brandName}" <${cfg.bookingEmailFrom}>`,
       to: booking.userEmail,
-      subject: `Booking Confirmed - ${booking.trackingNumber} | ParkPro Parking`,
+      subject: `Booking Confirmed - ${booking.trackingNumber} | ${cfg.brandName}`,
       html,
     };
 
     try {
-      const info = await this.transporter.sendMail(mailOptions);
-      if (!this.isConfigured) {
-        console.log("📧 Email (dev mode):", JSON.parse(info.message).subject);
+      const info = await transporter.sendMail(mailOptions);
+      if (!isConfigured) {
+        console.log("📧 Email (dev mode):", JSON.parse((info as any).message).subject);
       } else {
-        console.log("📧 Email sent:", info.messageId);
+        console.log("📧 Email sent:", (info as any).messageId);
       }
     } catch (error) {
       console.error("❌ Email send failed:", error);
@@ -190,4 +159,3 @@ class EmailService {
 }
 
 export const emailService = new EmailService();
-

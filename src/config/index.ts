@@ -20,6 +20,14 @@ export interface BusinessEmailConfig {
   brandName: string;
   /** Base URL of the business's frontend — used in Stripe redirect URLs. */
   frontendUrl: string;
+  /** URL of the brand logo used in email headers. */
+  logoUrl: string;
+  /** Whether to show the brand name text next to the logo in emails. */
+  showBrandName: boolean;
+  /** Primary brand color for text, borders, and accents. */
+  primaryColor: string;
+  /** Primary brand color with transparency for backgrounds. */
+  primaryBgColor: string;
 }
 
 const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
@@ -34,6 +42,10 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     contactEmail: process.env.PARKPRO_CONTACT_EMAIL || "info@parkpro.uk",
     brandName: "ParkPro",
     frontendUrl: process.env.PARKPRO_FRONTEND_URL || "https://parkpro.uk",
+    logoUrl: "https://parkpro.uk/logo.svg",
+    showBrandName: true,
+    primaryColor: "#fe6f09",
+    primaryBgColor: "#ff8b338f",
   },
   [HEATHROW_BUSINESS_ID]: {
     smtpHost: process.env.HEATHROW_SMTP_HOST || "premium334.web-hosting.com",
@@ -51,6 +63,10 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     brandName: "Heathrow Safe Parking",
     frontendUrl:
       process.env.HEATHROW_FRONTEND_URL || "https://heathrowsafeparking.com",
+    logoUrl: "https://heathrowsafeparking.com/logo.svg",
+    showBrandName: false,
+    primaryColor: "#21aeca",
+    primaryBgColor: "#21aeca7a",
   },
 };
 

@@ -38,16 +38,18 @@ class EmailService {
           <style>
             body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7fa; margin: 0; padding: 0; }
             .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-            .header { background: #ff8b338f; color: #fff; padding: 32px 24px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px;}
+            .header { background: ${cfg.primaryBgColor}; color: #fff; padding: 32px 24px; text-align: center; }
+            .header-inner { display: inline-flex; align-items: center; justify-content: center; gap: 12px; }
+            .header img { height: 48px; width: auto; display: block; }
             .header .brand { font-weight: bold; font-size: 28px; color: #fff; }
             .body-content { padding: 32px 24px; }
-            .tracking-box { background: #ff8b338f; border: 2px dashed #fe6f09; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
+            .tracking-box { background: ${cfg.primaryBgColor}; border: 2px dashed ${cfg.primaryColor}; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
             .tracking-box .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
-            .tracking-box .number { font-size: 28px; font-weight: bold; color: #fe6f09; margin: 4px 0; letter-spacing: 2px; }
+            .tracking-box .number { font-size: 28px; font-weight: bold; color: ${cfg.primaryColor}; margin: 4px 0; letter-spacing: 2px; }
             .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
             .detail-row .label { color: #666; font-size: 14px; }
             .detail-row .value { font-weight: 600; color: #333; font-size: 14px; }
-            .section-title { font-size: 16px; font-weight: 600; color: #fe6f09; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e8f0fe; }
+            .section-title { font-size: 16px; font-weight: 600; color: ${cfg.primaryColor}; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e8f0fe; }
             .price-box { background: #e8f4e8; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
             .price-box .amount { font-size: 32px; font-weight: bold; color: #2a7d2a; }
             .footer { background: #f8f9fa; padding: 20px 24px; text-align: center; font-size: 12px; color: #999; }
@@ -58,7 +60,10 @@ class EmailService {
         <body>
           <div class="container">
             <div class="header">
-              <p class="brand">${cfg.brandName.toUpperCase()}</p>
+              <div class="header-inner">
+                <img src="${cfg.logoUrl}" alt="${cfg.brandName} logo" />
+                ${cfg.showBrandName ? `<span class="brand">${cfg.brandName.toUpperCase()}</span>` : ""}
+              </div>
             </div>
             <div class="body-content">
               <p>Dear <strong>${booking.userName}</strong>,</p>

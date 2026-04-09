@@ -88,9 +88,7 @@ export const createCheckoutSession = async (
             unit_amount: Math.round(priceCalc.finalPrice * 100), // pence
             product_data: {
               name: `${getBusinessEmailConfig(businessId).brandName}`,
-              description: `🚗 ${booking.carMake} ${booking.carModel} (${booking.carNumber}) 
-📍 Drop-off: ${dropOff} 
-📍 Pick-up: ${pickUp}`,
+              description: `Car: ${booking.carMake} ${booking.carModel} (${booking.carNumber}) | Drop-off: ${dropOff} | Pick-up: ${pickUp}`,
             },
           },
         },

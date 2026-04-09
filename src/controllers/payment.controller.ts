@@ -87,8 +87,10 @@ export const createCheckoutSession = async (
             currency: "gbp",
             unit_amount: Math.round(priceCalc.finalPrice * 100), // pence
             product_data: {
-              name: `Airport Parking — ${booking.carMake} ${booking.carModel}`,
-              description: `Drop-off: ${dropOff} | Pick-up: ${pickUp} | Reg: ${booking.carNumber}`,
+              name: `${getBusinessEmailConfig(businessId).brandName} — ${booking.carMake} ${booking.carModel}`,
+              description: `🚗 ${booking.carMake} ${booking.carModel} (${booking.carNumber}) 
+📍 Drop-off: ${dropOff} 
+📍 Pick-up: ${pickUp}`,
             },
           },
         },
@@ -101,6 +103,21 @@ export const createCheckoutSession = async (
         bookingId: (booking._id as unknown as string).toString(),
         trackingNumber: booking.trackingNumber,
         businessId,
+        businessName: `${getBusinessEmailConfig(businessId).brandName}`,
+      },
+      payment_intent_data: {
+        receipt_email: booking.userEmail,
+        metadata: {
+          bookingId: booking._id.toString(),
+          businessId,
+          trackingNumber: booking.trackingNumber,
+          businessName: `${getBusinessEmailConfig(businessId).brandName}`,
+        },
+      },
+      custom_text: {
+        submit: {
+          message: `Secure your parking with ${getBusinessEmailConfig(businessId).brandName} 🚗 — You're almost done!`,
+        },
       },
     });
 

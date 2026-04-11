@@ -68,7 +68,7 @@ app.use(errorHandler);
 const startServer = async () => {
   await connectDB();
   app.listen(config.port, () => {
-    console.log(`\n🚀 ParkPro API running on http://localhost:${config.port}`);
+    console.log(`\n🚀 Heathrow Parking Services API running on http://localhost:${config.port}`);
     console.log(
       `📊 Health check: http://localhost:${config.port}/api/health\n`,
     );

@@ -1,7 +1,7 @@
 {
-  "name": "parkpro-backend",
+  "name": "heathrow-parking-services-backend",
   "version": "1.0.0",
-  "description": "ParkPro Airport Parking Management System - Backend",
+  "description": "Heathrow Parking Services System - Backend",
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",

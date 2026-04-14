@@ -7,6 +7,13 @@ export const PARKPRO_BUSINESS_ID =
 export const HEATHROW_BUSINESS_ID =
   process.env.HEATHROW_BUSINESS_ID || "69d3f081f2245d52c5927d3d";
 
+// ── Compare site ─────────────────────────────────────────────────────────────
+export const COMPARE_SITE_NAME = "Heathrow Compare Parking";
+export const COMPARE_FRONTEND_URL =
+  process.env.COMPARE_FRONTEND_URL || "https://compareheathrowparking.uk";
+/** Virtual business ID used only for email config routing (no DB entry). */
+export const COMPARE_BUSINESS_ID = "compare";
+
 // ── Per-business email config ────────────────────────────────────────────────
 export interface BusinessEmailConfig {
   smtpHost: string;
@@ -31,6 +38,26 @@ export interface BusinessEmailConfig {
 }
 
 const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
+  [COMPARE_BUSINESS_ID]: {
+    smtpHost: process.env.COMPARE_SMTP_HOST || "premium334.web-hosting.com",
+    smtpPort: parseInt(process.env.COMPARE_SMTP_PORT || "465", 10),
+    bookingSmtpUser:
+      process.env.COMPARE_BOOKING_SMTP_USER || "booking@compareheathrowparking.uk",
+    bookingSmtpPass: process.env.COMPARE_BOOKING_SMTP_PASS || "",
+    bookingEmailFrom:
+      process.env.COMPARE_BOOKING_EMAIL_FROM || "booking@compareheathrowparking.uk",
+    contactSmtpUser:
+      process.env.COMPARE_CONTACT_SMTP_USER || "info@compareheathrowparking.uk",
+    contactSmtpPass: process.env.COMPARE_CONTACT_SMTP_PASS || "",
+    contactEmail:
+      process.env.COMPARE_CONTACT_EMAIL || "info@compareheathrowparking.uk",
+    brandName: COMPARE_SITE_NAME,
+    frontendUrl: process.env.COMPARE_FRONTEND_URL || "https://compareheathrowparking.uk",
+    logoUrl: "https://compareheathrowparking.uk/logo.svg",
+    showBrandName: true,
+    primaryColor: "#7c3aed",
+    primaryBgColor: "#ede9fe",
+  },
   [PARKPRO_BUSINESS_ID]: {
     smtpHost: process.env.PARKPRO_SMTP_HOST || "premium334.web-hosting.com",
     smtpPort: parseInt(process.env.PARKPRO_SMTP_PORT || "465", 10),
@@ -75,6 +102,10 @@ export const getBusinessEmailConfig = (businessId: string): BusinessEmailConfig 
   return businessEmailConfigs[businessId] ?? businessEmailConfigs[PARKPRO_BUSINESS_ID];
 };
 
+/** Returns the compare site email config (always — no fallback needed). */
+export const getCompareEmailConfig = (): BusinessEmailConfig =>
+  businessEmailConfigs[COMPARE_BUSINESS_ID];
+
 // ── General config ───────────────────────────────────────────────────────────
 export const config = {
   port: parseInt(process.env.PORT || "5000", 10),
@@ -82,7 +113,10 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || "default-secret",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   /** Comma-separated list of allowed CORS origins. */
-  frontendUrls: (process.env.FRONTEND_URL || "http://localhost:3000")
+  frontendUrls: (
+    process.env.FRONTEND_URL ||
+    "http://localhost:3000,http://localhost:3002,https://compareheathrowparking.uk,https://www.compareheathrowparking.com"
+  )
     .split(",")
     .map((u) => u.trim())
     .filter(Boolean),

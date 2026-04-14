@@ -45,6 +45,8 @@ export interface IBooking extends Document {
   overtimeHours?: number;
   pricePerHour?: number;
   discountPercent: number;
+  /** "heathrowcompare" when the booking originated from compareheathrowparking */
+  bookedVia?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -105,6 +107,7 @@ const BookingSchema = new Schema<IBooking>(
     overtimeHours: { type: Number, default: 0 },
     pricePerHour: { type: Number, default: 0 },
     discountPercent: { type: Number, default: 0 },
+    bookedVia: { type: String, default: "" },
   },
   {
     timestamps: true,

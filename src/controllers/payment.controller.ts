@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import Stripe from "stripe";
-import { config, getBusinessEmailConfig } from "../config";
+import { config, getBusinessEmailConfig, COMPARE_SITE_NAME, COMPARE_FRONTEND_URL } from "../config";
 import { bookingService } from "../services/booking.service";
 import { pricingService } from "../services/pricing.service";
 import { Business } from "../models/Business";
@@ -37,6 +37,7 @@ export const createCheckoutSession = async (
     }
 
     const data = parsed.data;
+    const isCompareSite = data.bookedVia === "heathrowcompare";
 
     // Check business exists and bookings are enabled
     const business = await Business.findById(businessId);
@@ -76,6 +77,17 @@ export const createCheckoutSession = async (
       minute: "2-digit",
     });
 
+    const bizCfg = getBusinessEmailConfig(businessId);
+    const baseUrl = isCompareSite
+      ? COMPARE_FRONTEND_URL
+      : bizCfg.frontendUrl;
+    const productName = isCompareSite
+      ? `${bizCfg.brandName} — booked via ${COMPARE_SITE_NAME}`
+      : bizCfg.brandName;
+    const submitMessage = isCompareSite
+      ? `Secure your parking with ${bizCfg.brandName} (via ${COMPARE_SITE_NAME}) 🚗 — You're almost done!`
+      : `Secure your parking with ${bizCfg.brandName} 🚗 — You're almost done!`;
+
     // Create Stripe Checkout session (card only, GBP)
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -87,21 +99,24 @@ export const createCheckoutSession = async (
             currency: "gbp",
             unit_amount: Math.round(priceCalc.finalPrice * 100), // pence
             product_data: {
-              name: `${getBusinessEmailConfig(businessId).brandName}`,
+              name: productName,
               description: `Car: ${booking.carMake} ${booking.carModel} (${booking.carNumber}) | Drop-off: ${dropOff} | Pick-up: ${pickUp}`,
             },
           },
         },
       ],
       customer_email: booking.userEmail,
-      success_url: `${getBusinessEmailConfig(businessId).frontendUrl}/book/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${getBusinessEmailConfig(businessId).frontendUrl}/book/payment-cancelled`,
+      success_url: `${baseUrl}/book/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: isCompareSite
+        ? `${baseUrl}/book/payment-cancelled?brand=${encodeURIComponent(businessId)}`
+        : `${baseUrl}/book/payment-cancelled`,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30-minute window
       metadata: {
         bookingId: (booking._id as unknown as string).toString(),
         trackingNumber: booking.trackingNumber,
         businessId,
-        businessName: `${getBusinessEmailConfig(businessId).brandName}`,
+        businessName: bizCfg.brandName,
+        bookedVia: data.bookedVia || "",
       },
       payment_intent_data: {
         receipt_email: booking.userEmail,
@@ -109,12 +124,13 @@ export const createCheckoutSession = async (
           bookingId: booking._id.toString(),
           businessId,
           trackingNumber: booking.trackingNumber,
-          businessName: `${getBusinessEmailConfig(businessId).brandName}`,
+          businessName: bizCfg.brandName,
+          bookedVia: data.bookedVia || "",
         },
       },
       custom_text: {
         submit: {
-          message: `Secure your parking with ${getBusinessEmailConfig(businessId).brandName} 🚗 — You're almost done!`,
+          message: submitMessage,
         },
       },
     });

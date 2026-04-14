@@ -1,5 +1,5 @@
 import { IBooking } from "../models/Booking";
-import { getBusinessEmailConfig } from "../config";
+import { getBusinessEmailConfig, getCompareEmailConfig, COMPARE_SITE_NAME } from "../config";
 import { createTransporter } from "../config/transporter";
 import {
   calculateChargeableDays,
@@ -11,9 +11,13 @@ import {
 class EmailService {
   async sendBookingConfirmation(booking: IBooking): Promise<void> {
     const businessId = booking.businessId.toString();
+    // Brand config drives the template (logo, colours, brand name).
     const cfg = getBusinessEmailConfig(businessId);
-    const transporter = createTransporter(cfg, "booking");
-    const isConfigured = !!(cfg.bookingSmtpUser && cfg.bookingSmtpPass);
+    // When booked via the compare site, use compare SMTP credentials.
+    const isCompareSite = booking.bookedVia === "heathrowcompare";
+    const smtpCfg = isCompareSite ? getCompareEmailConfig() : cfg;
+    const transporter = createTransporter(smtpCfg, "booking");
+    const isConfigured = !!(smtpCfg.bookingSmtpUser && smtpCfg.bookingSmtpPass);
 
     const startDate = new Date(booking.bookedStartTime).toLocaleString("en-GB", {
       dateStyle: "full",
@@ -42,7 +46,11 @@ class EmailService {
             .header-inner { display: inline-flex; align-items: center; justify-content: center; gap: 12px; }
             .header img { height: 48px; width: auto; display: block; }
             .header .brand { font-weight: bold; font-size: 28px; color: #fff; }
+            .compare-banner { background: #1a1a2e; color: #fff; padding: 8px 16px; text-align: center; font-size: 12px; letter-spacing: 0.5px; }
+            .compare-banner strong { color: #a78bfa; }
             .body-content { padding: 32px 24px; }
+            .provider-note { background: #f3f0ff; border-left: 4px solid #7c3aed; border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #4b4b6b; }
+            .provider-note strong { color: #7c3aed; }
             .tracking-box { background: ${cfg.primaryBgColor}; border: 2px dashed ${cfg.primaryColor}; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
             .tracking-box .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
             .tracking-box .number { font-size: 28px; font-weight: bold; color: ${cfg.primaryColor}; margin: 4px 0; letter-spacing: 2px; }
@@ -59,6 +67,7 @@ class EmailService {
         </head>
         <body>
           <div class="container">
+            ${isCompareSite ? `<div class="compare-banner">Booked via <strong>${COMPARE_SITE_NAME}</strong></div>` : ""}
             <div class="header">
               <div class="header-inner">
                 <img src="${cfg.logoUrl}" alt="${cfg.brandName} logo" />
@@ -67,7 +76,11 @@ class EmailService {
             </div>
             <div class="body-content">
               <p>Dear <strong>${booking.userName}</strong>,</p>
-              <p>Your parking has been booked successfully! Here are your booking details:</p>
+              ${isCompareSite
+                ? `<p>Your parking has been booked successfully through <strong>${COMPARE_SITE_NAME}</strong>. Your parking services are provided by <strong>${cfg.brandName}</strong>. Here are your booking details:</p>
+                   <div class="provider-note">Parking services provided by <strong>${cfg.brandName}</strong> — booked via <strong>${COMPARE_SITE_NAME}</strong>.</div>`
+                : `<p>Your parking has been booked successfully! Here are your booking details:</p>`
+              }
 
               <div class="tracking-box">
                 <div class="label">Your Tracking Number</div>
@@ -135,6 +148,7 @@ class EmailService {
             </div>
             <div class="footer">
               <p>© ${new Date().getFullYear()} ${cfg.brandName}. All rights reserved.</p>
+              ${isCompareSite ? `<p>Booking made via <strong>${COMPARE_SITE_NAME}</strong>. Parking services provided by ${cfg.brandName}.</p>` : ""}
               <p>This is an automated confirmation. Please do not reply to this email.</p>
             </div>
           </div>
@@ -142,10 +156,20 @@ class EmailService {
       </html>
     `;
 
+    const senderName = isCompareSite
+      ? `${COMPARE_SITE_NAME} (${cfg.brandName})`
+      : cfg.brandName;
+    const senderEmail = isCompareSite
+      ? smtpCfg.bookingEmailFrom
+      : cfg.bookingEmailFrom;
+    const subjectSuffix = isCompareSite
+      ? `${COMPARE_SITE_NAME} — ${cfg.brandName}`
+      : cfg.brandName;
+
     const mailOptions = {
-      from: `"${cfg.brandName}" <${cfg.bookingEmailFrom}>`,
+      from: `"${senderName}" <${senderEmail}>`,
       to: booking.userEmail,
-      subject: `Booking Confirmed - ${booking.trackingNumber} | ${cfg.brandName}`,
+      subject: `Booking Confirmed - ${booking.trackingNumber} | ${subjectSuffix}`,
       html,
     };
 

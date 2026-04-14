@@ -94,6 +94,7 @@ class BookingService {
       overtimeDays: 0,
       overtimeHours: 0,
       overtimePrice: 0,
+      bookedVia: data.bookedVia || "",
     });
 
     await booking.save();

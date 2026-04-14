@@ -18,6 +18,7 @@ export const createBookingSchema = z
     departureFlightNo: z.string().max(20).optional().default(""),
     arrivalTerminal: z.string().max(10).optional().default(""),
     arrivalFlightNo: z.string().max(20).optional().default(""),
+    bookedVia: z.string().max(50).optional().default(""),
   })
   .refine(
     (data) => new Date(data.bookedEndTime) > new Date(data.bookedStartTime),

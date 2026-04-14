@@ -1,4 +1,4 @@
-import { getBusinessEmailConfig } from "../config";
+import { getBusinessEmailConfig, COMPARE_SITE_NAME } from "../config";
 import { createTransporter } from "../config/transporter";
 
 class ContactEmailService {
@@ -9,8 +9,15 @@ class ContactEmailService {
     businessId: string,
   ): Promise<void> {
     const cfg = getBusinessEmailConfig(businessId);
+    const isCompareSite = businessId === "compare";
     const transporter = createTransporter(cfg, "contact");
     const isConfigured = !!(cfg.contactSmtpUser && cfg.contactSmtpPass);
+
+    const headerBg = isCompareSite
+      ? "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)"
+      : "linear-gradient(135deg, #1e3a5f 0%, #2d5f8b 100%)";
+    const accentColor = isCompareSite ? "#7c3aed" : "#2d5f8b";
+    const accentBg = isCompareSite ? "#f3f0ff" : "#f0f7ff";
 
     const html = `
     <!DOCTYPE html>
@@ -19,12 +26,12 @@ class ContactEmailService {
         <style>
           body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7fa; margin: 0; padding: 0; }
           .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-          .header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5f8b 100%); color: #fff; padding: 32px 24px; text-align: center; }
+          .header { background: ${headerBg}; color: #fff; padding: 32px 24px; text-align: center; }
           .header h1 { margin: 0; font-size: 28px; letter-spacing: 1px; }
           .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; }
           .body-content { padding: 32px 24px; }
-          .message-box { background: #f0f7ff; border: 2px dashed #2d5f8b; border-radius: 8px; padding: 16px; margin: 20px 0; }
-          .section-title { font-size: 16px; font-weight: 600; color: #1e3a5f; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e8f0fe; }
+          .message-box { background: ${accentBg}; border: 2px dashed ${accentColor}; border-radius: 8px; padding: 16px; margin: 20px 0; }
+          .section-title { font-size: 16px; font-weight: 600; color: ${accentColor}; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e8f0fe; }
           table { width: 100%; }
           td { padding: 10px 0; }
           .detail-row { border-bottom: 1px solid #eee; }
@@ -67,10 +74,13 @@ class ContactEmailService {
       </html>
     `;
 
+    const subjectPrefix = isCompareSite
+      ? `[${COMPARE_SITE_NAME}] `
+      : "";
     const mailOptions = {
-      from: `"${name}" <${cfg.contactSmtpUser}>`,
+      from: `"${cfg.brandName} Contact" <${cfg.contactSmtpUser}>`,
       to: cfg.contactEmail,
-      subject: `New Contact Form Submission from ${name}`,
+      subject: `${subjectPrefix}New Contact Form Submission from ${name}`,
       replyTo: email,
       html,
     };

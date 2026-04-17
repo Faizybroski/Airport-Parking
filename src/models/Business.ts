@@ -16,6 +16,8 @@ export interface IBusiness extends Document {
   };
   bookingEnabled: boolean;
   tierId?: Types.ObjectId;
+  /** Per-terminal custom messages shown in confirmation emails (keyed by T1–T5). */
+  terminalMessages: Map<string, string>;
 }
 
 const BusinessSchema = new mongoose.Schema({
@@ -38,6 +40,8 @@ const BusinessSchema = new mongoose.Schema({
   },
 
   bookingEnabled: { type: Boolean, default: true },
+
+  terminalMessages: { type: Map, of: String, default: {} },
 
   tierId: {
     type: mongoose.Schema.Types.ObjectId,

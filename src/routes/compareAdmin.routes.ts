@@ -8,6 +8,8 @@ import {
   bulkDeleteBookings,
   getBookingToggle,
   setBookingToggle,
+  getTerminalMessages,
+  updateTerminalMessages,
 } from "../controllers/admin.controller";
 import {
   getPricingConfig,
@@ -33,6 +35,7 @@ import {
   updateBusinessTierSchema,
   assignTierSchema,
   adminLoginSchema,
+  updateTerminalMessagesSchema,
 } from "../validators";
 
 const router = Router();
@@ -79,6 +82,10 @@ router.delete("/bookings/:id", attachBusinessId, fromCompare, deleteBooking);
 // Booking toggle
 router.get("/booking-toggle", attachBusinessId, getBookingToggle);
 router.patch("/booking-toggle", attachBusinessId, setBookingToggle);
+
+// Terminal messages
+router.get("/terminal-messages", attachBusinessId, getTerminalMessages);
+router.patch("/terminal-messages", attachBusinessId, validate(updateTerminalMessagesSchema), updateTerminalMessages);
 
 // Pricing
 router.get("/pricing", attachBusinessId, getPricingConfig);

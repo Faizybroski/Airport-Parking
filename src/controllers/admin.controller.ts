@@ -139,6 +139,45 @@ export const bulkDeleteBookings = async (
   }
 };
 
+/** GET /admin/terminal-messages — return terminal messages map for the business */
+export const getTerminalMessages = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const businessId = req.businessId!;
+    const business = await Business.findById(businessId);
+    if (!business) return next(new AppError("Business not found", 404));
+    const messages = Object.fromEntries(business.terminalMessages || new Map());
+    res.json({ success: true, data: { messages } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** PATCH /admin/terminal-messages — update terminal messages for the business */
+export const updateTerminalMessages = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const businessId = req.businessId!;
+    const { messages } = req.body as { messages: Record<string, string> };
+    const business = await Business.findByIdAndUpdate(
+      businessId,
+      { terminalMessages: messages },
+      { new: true },
+    );
+    if (!business) return next(new AppError("Business not found", 404));
+    const updated = Object.fromEntries(business.terminalMessages || new Map());
+    res.json({ success: true, data: { messages: updated } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /** GET /admin/booking-toggle — return current bookingEnabled state */
 export const getBookingToggle = async (
   req: Request,

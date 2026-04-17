@@ -195,8 +195,19 @@ export type CreateBusinessTierInput = z.infer<typeof createBusinessTierSchema>;
 export type UpdateBusinessTierInput = z.infer<typeof updateBusinessTierSchema>;
 export type AssignTierInput = z.infer<typeof assignTierSchema>;
 
+export const TERMINAL_VALUES = ["T1", "T2", "T3", "T4", "T5"] as const;
+export type TerminalValue = (typeof TERMINAL_VALUES)[number];
+
+export const updateTerminalMessagesSchema = z.object({
+  messages: z.record(z.string().max(1000)).refine(
+    (m) => Object.keys(m).every((k) => TERMINAL_VALUES.includes(k as TerminalValue)),
+    { message: "Keys must be one of T1–T5" },
+  ),
+});
+
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>;
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 export type BookingBulkSelectionInput = z.infer<typeof bookingBulkSelectionSchema>;
 export type PricingConfigInput = z.infer<typeof pricingConfigSchema>;
+export type UpdateTerminalMessagesInput = z.infer<typeof updateTerminalMessagesSchema>;

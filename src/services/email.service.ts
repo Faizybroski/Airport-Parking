@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { IBooking } from "../models/Booking";
+import { Business } from "../models/Business";
 import {
   getBusinessEmailConfig,
   getCompareEmailConfig,
@@ -44,6 +45,15 @@ class EmailService {
       booking.bookedDays ??
       calculateChargeableDays(booking.bookedStartTime, booking.bookedEndTime);
 
+    // Look up any admin-configured message for the selected departure terminal
+    const business = await Business.findById(businessId).lean();
+    const terminalMessage =
+      booking.departureTerminal && booking.departureTerminal !== ""
+        ? ((business?.terminalMessages as Record<string, string> | undefined)?.[
+            booking.departureTerminal
+          ] ?? "")
+        : "";
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -69,6 +79,9 @@ class EmailService {
             .section-title { font-size: 16px; font-weight: 600; color: ${cfg.primaryColor}; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e8f0fe; }
             .price-box { background: #e8f4e8; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
             .price-box .amount { font-size: 32px; font-weight: bold; color: #2a7d2a; }
+            .terminal-message { background: #fff8e1; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 16px 0; }
+            .terminal-message strong { color: #92400e; display: block; margin-bottom: 6px; font-size: 14px; }
+            .terminal-message p { margin: 0; color: #333; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
             .footer { background: #f8f9fa; padding: 20px 24px; text-align: center; font-size: 12px; color: #999; }
             table { width: 100%; }
             td { padding: 10px 0; }
@@ -135,7 +148,7 @@ class EmailService {
               </table>
 
               ${
-                booking.departureFlightNo
+                booking.departureTerminal || booking.departureFlightNo || booking.arrivalTerminal || booking.arrivalFlightNo
                   ? `
               <div class="section-title">✈️ Flight Details</div>
               <table>
@@ -144,6 +157,15 @@ class EmailService {
                 ${booking.arrivalTerminal ? `<tr class="detail-row"><td class="label">Arrival Terminal</td><td class="value">${booking.arrivalTerminal}</td></tr>` : ""}
                 ${booking.arrivalFlightNo ? `<tr class="detail-row"><td class="label">Arrival Flight</td><td class="value">${booking.arrivalFlightNo}</td></tr>` : ""}
               </table>
+              <div class="terminal-message">
+                <strong>Please call us on +447903835808, 30 minutes prior to your arrival at the airport</strong>
+              </div>
+              
+              ${terminalMessage ? `
+              <div class="terminal-message">
+                <strong>📍 ${booking.departureTerminal} — Important Information</strong>
+                <p>${terminalMessage}</p>
+              </div>` : ""}
               `
                   : ""
               }

@@ -21,9 +21,10 @@ import {
   deleteTier,
   assignTierToBusiness,
 } from "../controllers/businessTier.controller";
-import { authMiddleware } from "../middleware/auth";
+import { compareAuthMiddleware } from "../middleware/auth";
+import { compareLogin, compareLogout, getProfile } from "../controllers/auth.controller";
 import { validate } from "../middleware/validate";
-import { attachBusinessId } from "../middleware/business";
+import { attachBusinessId, requireBookedVia } from "../middleware/business";
 import {
   bookingBulkSelectionSchema,
   updateBookingStatusSchema,
@@ -31,37 +32,49 @@ import {
   createBusinessTierSchema,
   updateBusinessTierSchema,
   assignTierSchema,
+  adminLoginSchema,
 } from "../validators";
 
 const router = Router();
+const fromCompare = requireBookedVia("heathrowcompare");
 
-// All admin routes require auth
-router.use(authMiddleware);
+// ── Auth (no token required) ───────────────────────────────────────────────
+router.post("/login", validate(adminLoginSchema), compareLogin);
+router.post("/logout", compareLogout);
 
-// Dashboard
-router.get("/dashboard", attachBusinessId, getDashboard);
+// ── All routes below require a valid compare_token ─────────────────────────
+router.use(compareAuthMiddleware);
 
-// Bookings
-router.get("/bookings", attachBusinessId, getAllBookings);
+// Profile
+router.get("/profile", getProfile);
+
+// Dashboard — scoped to compare-originated bookings
+router.get("/dashboard", attachBusinessId, fromCompare, getDashboard);
+
+// Bookings — only compare-originated
+router.get("/bookings", attachBusinessId, fromCompare, getAllBookings);
 router.post(
   "/bookings/export",
   attachBusinessId,
+  fromCompare,
   validate(bookingBulkSelectionSchema),
   exportBookings,
 );
 router.post(
   "/bookings/bulk-delete",
   attachBusinessId,
+  fromCompare,
   validate(bookingBulkSelectionSchema),
   bulkDeleteBookings,
 );
 router.patch(
   "/bookings/:id/status",
   attachBusinessId,
+  fromCompare,
   validate(updateBookingStatusSchema),
   updateBookingStatus,
 );
-router.delete("/bookings/:id", attachBusinessId, deleteBooking);
+router.delete("/bookings/:id", attachBusinessId, fromCompare, deleteBooking);
 
 // Booking toggle
 router.get("/booking-toggle", attachBusinessId, getBookingToggle);

@@ -6,6 +6,7 @@ import {
 } from "../utils/bookingLifecycle";
 import { IPricingRule, PricingRuleSchema } from "./PricingConfig";
 import type { BookingStatus } from "../utils/bookingLifecycle";
+import type { IBusinessTier } from "./BusinessTier";
 
 export type { BookingStatus } from "../utils/bookingLifecycle";
 
@@ -47,6 +48,10 @@ export interface IBooking extends Document {
   discountPercent: number;
   /** "heathrowcompare" when the booking originated from compareheathrowparking */
   bookedVia?: string;
+  /** The service tier selected at booking time (if any) */
+  tierId?: Types.ObjectId | null;
+  /** Snapshot of the tier name at booking time */
+  tierName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -108,6 +113,12 @@ const BookingSchema = new Schema<IBooking>(
     pricePerHour: { type: Number, default: 0 },
     discountPercent: { type: Number, default: 0 },
     bookedVia: { type: String, default: "" },
+    tierId: {
+      type: Schema.Types.ObjectId,
+      ref: "BusinessTier",
+      default: null,
+    },
+    tierName: { type: String, default: "" },
   },
   {
     timestamps: true,

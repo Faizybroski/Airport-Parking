@@ -8,47 +8,47 @@ const seed = async () => {
     await mongoose.connect(config.mongodbUri);
     console.log("Connected to MongoDB");
 
-    let business = await Business.findOne({ name: "Park Pro" });
+    let business = await Business.findOne({ name: "Compare" });
     if (!business) {
       business = await Business.create({
-        name: "Park Pro",
-        slug: "park-pro",
+        name: "Copare",
+        slug: "compare",
         bookingEnabled: true,
       });
-      console.log("Business created: Park Pro / park-pro");
+      console.log("Business created: Compare / compare");
     } else {
       console.log("Business already exists");
     }
 
-    const existingConfig = await PricingConfig.findOne();
-    if (!existingConfig) {
-      await PricingConfig.create({
-        businessId: business._id,
-        pricingRules: [
-          {
-            startDay: 1,
-            endDay: 10,
-            basePrice: 12,
-            dailyIncrement: 8,
-          },
-          {
-            startDay: 11,
-            endDay: 30,
-            basePrice: 87,
-            dailyIncrement: 3,
-          },
-          {
-            startDay: 31,
-            endDay: null,
-            basePrice: 146,
-            dailyIncrement: 2,
-          },
-        ],
-      });
-      console.log("Pricing config created with rule-based daily pricing");
-    } else {
-      console.log("Pricing config already exists");
-    }
+    // const existingConfig = await PricingConfig.findOne();
+    // if (!existingConfig) {
+    //   await PricingConfig.create({
+    //     businessId: business._id,
+    //     pricingRules: [
+    //       {
+    //         startDay: 1,
+    //         endDay: 10,
+    //         basePrice: 12,
+    //         dailyIncrement: 8,
+    //       },
+    //       {
+    //         startDay: 11,
+    //         endDay: 30,
+    //         basePrice: 87,
+    //         dailyIncrement: 3,
+    //       },
+    //       {
+    //         startDay: 31,
+    //         endDay: null,
+    //         basePrice: 146,
+    //         dailyIncrement: 2,
+    //       },
+    //     ],
+    // });
+    // console.log("Pricing config created with rule-based daily pricing");
+    // } else {
+    //   console.log("Pricing config already exists");
+    // }
 
     console.log("Seed completed successfully");
     process.exit(0);

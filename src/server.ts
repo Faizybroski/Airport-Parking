@@ -9,6 +9,7 @@ import { errorHandler } from "./middleware/errorHandler";
 import bookingRoutes from "./routes/booking.routes";
 import authRoutes from "./routes/auth.routes";
 import adminRoutes from "./routes/admin.routes";
+import compareAdminRoutes from "./routes/compareAdmin.routes";
 import paymentRoutes from "./routes/payment.routes";
 import contactRoutes from "./routes/contact.routes";
 import { stripeWebhook } from "./controllers/payment.controller";
@@ -51,6 +52,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api", contactRoutes);
 app.use("/api/admin", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/compare", compareAdminRoutes);
 // Health check
 app.get("/api/health", (_req, res) => {
   res.json({ success: true, message: "ParkPro API is running" });

@@ -19,6 +19,7 @@ export const createBookingSchema = z
     arrivalTerminal: z.string().max(10).optional().default(""),
     arrivalFlightNo: z.string().max(20).optional().default(""),
     bookedVia: z.string().max(50).optional().default(""),
+    tierId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid tier id").optional(),
   })
   .refine(
     (data) => new Date(data.bookedEndTime) > new Date(data.bookedStartTime),
@@ -155,6 +156,44 @@ export const pricingConfigSchema = z
       });
     }
   });
+
+export const createBusinessTierSchema = z.object({
+  name: z.string().min(1, "Tier name is required").max(100),
+  description: z.string().max(500).optional().default(""),
+  features: z
+    .array(z.string().min(1).max(200))
+    .min(1, "At least one feature is required"),
+  firstTenDayPrices: z
+    .array(z.number().min(0, "Price must be >= 0"))
+    .length(10, "Exactly 10 day prices are required"),
+  day11To30Increment: z.number().min(0, "Increment must be >= 0"),
+  day31PlusIncrement: z.number().min(0, "Increment must be >= 0"),
+  isActive: z.boolean().optional().default(true),
+});
+
+export const updateBusinessTierSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).optional(),
+  features: z.array(z.string().min(1).max(200)).min(1).optional(),
+  firstTenDayPrices: z
+    .array(z.number().min(0))
+    .length(10, "Exactly 10 day prices are required")
+    .optional(),
+  day11To30Increment: z.number().min(0).optional(),
+  day31PlusIncrement: z.number().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const assignTierSchema = z.object({
+  tierId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid tier id")
+    .nullable(),
+});
+
+export type CreateBusinessTierInput = z.infer<typeof createBusinessTierSchema>;
+export type UpdateBusinessTierInput = z.infer<typeof updateBusinessTierSchema>;
+export type AssignTierInput = z.infer<typeof assignTierSchema>;
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>;

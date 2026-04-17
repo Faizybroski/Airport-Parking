@@ -1,4 +1,4 @@
-import mongoose, { Document } from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
 
 export interface IBusiness extends Document {
   name: string;
@@ -15,6 +15,7 @@ export interface IBusiness extends Document {
     }[];
   };
   bookingEnabled: boolean;
+  tierId?: Types.ObjectId;
 }
 
 const BusinessSchema = new mongoose.Schema({
@@ -37,6 +38,12 @@ const BusinessSchema = new mongoose.Schema({
   },
 
   bookingEnabled: { type: Boolean, default: true },
+
+  tierId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "BusinessTier",
+    default: null,
+  },
 });
 
 export const Business = mongoose.model<IBusiness>("Business", BusinessSchema);

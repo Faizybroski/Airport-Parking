@@ -56,6 +56,7 @@ export const createCheckoutSession = async (
       businessId,
       new Date(data.bookedStartTime),
       new Date(data.bookedEndTime),
+      data.tierId,
     );
 
     // Create the booking record with paymentStatus: 'awaiting_payment'

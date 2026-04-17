@@ -25,7 +25,11 @@ class AuthService {
     }
 
     const token = jwt.sign(
-      { id: admin._id, businessId: admin.businessId.toString() },
+      {
+        id: admin._id,
+        businessId: admin.businessId.toString(),
+        isCompareAdmin: admin.isCompareAdmin ?? false,
+      },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn as jwt.SignOptions["expiresIn"] },
     ) as unknown as string;
@@ -37,6 +41,7 @@ class AuthService {
         email: admin.email,
         name: admin.name,
         businessId: admin.businessId,
+        isCompareAdmin: admin.isCompareAdmin ?? false,
       },
     };
   }

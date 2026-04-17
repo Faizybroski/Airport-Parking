@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Booking, IBooking, BookingStatus } from "../models/Booking";
 import { Business } from "../models/Business";
+import { BusinessTier } from "../models/BusinessTier";
 import { pricingService } from "./pricing.service";
 import { emailService } from "./email.service";
 import { formatDayCount, generateTrackingNumber } from "../utils/helpers";
@@ -15,10 +16,12 @@ type BookingListParams = {
   page?: number;
   limit?: number;
   search?: string;
+  bookedVia?: string;
 };
 
 type BookingSelectionScope = BookingBulkSelectionInput & {
   businessId: string;
+  bookedVia?: string;
 };
 
 const MAX_BOOKINGS_PAGE_SIZE = 100;
@@ -54,7 +57,15 @@ class BookingService {
       businessId,
       startTime,
       endTime,
+      data.tierId,
     );
+
+    // Resolve tier name snapshot if a tierId was provided
+    let tierName = "";
+    if (data.tierId) {
+      const tier = await BusinessTier.findById(data.tierId).select("name").lean();
+      tierName = tier?.name ?? "";
+    }
 
     let trackingNumber: string;
     let exists = true;
@@ -95,6 +106,8 @@ class BookingService {
       overtimeHours: 0,
       overtimePrice: 0,
       bookedVia: data.bookedVia || "",
+      tierId: data.tierId ?? null,
+      tierName,
     });
 
     await booking.save();
@@ -150,12 +163,17 @@ class BookingService {
     businessId,
     status,
     search,
-  }: Pick<BookingListParams, "businessId" | "status" | "search">) {
+    bookedVia,
+  }: Pick<BookingListParams, "businessId" | "status" | "search" | "bookedVia">) {
     const query: Record<string, unknown> = { businessId };
     const normalizedSearch = search?.trim();
 
     if (status) {
       query.status = status;
+    }
+
+    if (bookedVia) {
+      query.bookedVia = bookedVia;
     }
 
     if (normalizedSearch) {
@@ -177,18 +195,22 @@ class BookingService {
     excludeIds,
     search,
     status,
+    bookedVia,
   }: BookingSelectionScope) {
     if (selectionMode === "selected") {
-      return {
+      const q: Record<string, unknown> = {
         businessId,
         _id: { $in: ids },
       };
+      if (bookedVia) q.bookedVia = bookedVia;
+      return q;
     }
 
     const query = this.buildBookingsQuery({
       businessId,
       status,
       search,
+      bookedVia,
     });
 
     if (excludeIds.length > 0) {
@@ -218,8 +240,8 @@ class BookingService {
     totalPages: number;
     limit: number;
   }> {
-    const { businessId, status, page = 1, limit = 20, search } = params;
-    const query = this.buildBookingsQuery({ businessId, status, search });
+    const { businessId, status, page = 1, limit = 20, search, bookedVia } = params;
+    const query = this.buildBookingsQuery({ businessId, status, search, bookedVia });
     const normalizedLimit = Math.min(
       MAX_BOOKINGS_PAGE_SIZE,
       Math.max(1, Math.trunc(limit)),
@@ -247,6 +269,7 @@ class BookingService {
     id: string,
     status: BookingStatus,
     actualExitTime?: string,
+    bookedVia?: string,
   ): Promise<IBooking> {
     const booking = await Booking.findById(id);
     if (!booking) {
@@ -254,6 +277,10 @@ class BookingService {
     }
 
     if (booking.businessId.toString() !== businessId) {
+      throw new AppError("You are not authorized to update this booking", 403);
+    }
+
+    if (bookedVia && booking.bookedVia !== bookedVia) {
       throw new AppError("You are not authorized to update this booking", 403);
     }
 
@@ -343,7 +370,7 @@ class BookingService {
     return booking;
   }
 
-  async getDashboardStats(businessId: string): Promise<{
+  async getDashboardStats(businessId: string, bookedVia?: string): Promise<{
     businessId: string;
     totalBookings: number;
     activeBookings: number;
@@ -364,6 +391,7 @@ class BookingService {
 
     const business = await Business.findById(businessId);
     const objectBusinessId = new mongoose.Types.ObjectId(businessId);
+    const viaFilter = bookedVia ? { bookedVia } : {};
 
     const [
       totalBookings,
@@ -375,17 +403,18 @@ class BookingService {
       overtimeResult,
       todayBookings,
     ] = await Promise.all([
-      Booking.countDocuments({ businessId }),
-      Booking.countDocuments({ status: "active", businessId }),
-      Booking.countDocuments({ status: "upcoming", businessId }),
-      Booking.countDocuments({ status: "completed", businessId }),
-      Booking.countDocuments({ status: "cancelled", businessId }),
+      Booking.countDocuments({ businessId, ...viaFilter }),
+      Booking.countDocuments({ status: "active", businessId, ...viaFilter }),
+      Booking.countDocuments({ status: "upcoming", businessId, ...viaFilter }),
+      Booking.countDocuments({ status: "completed", businessId, ...viaFilter }),
+      Booking.countDocuments({ status: "cancelled", businessId, ...viaFilter }),
       Booking.aggregate([
         {
           $match: {
             businessId: objectBusinessId,
             paymentStatus: "paid",
             status: { $in: ["upcoming", "active", "completed"] },
+            ...viaFilter,
           },
         },
         { $group: { _id: null, total: { $sum: "$price" } } },
@@ -397,6 +426,7 @@ class BookingService {
             paymentStatus: "paid",
             status: "completed",
             overtimePrice: { $gt: 0 },
+            ...viaFilter,
           },
         },
         { $group: { _id: null, total: { $sum: "$overtimePrice" } } },
@@ -404,6 +434,7 @@ class BookingService {
       Booking.countDocuments({
         businessId,
         createdAt: { $gte: today, $lt: tomorrow },
+        ...viaFilter,
       }),
     ]);
 
@@ -477,13 +508,17 @@ class BookingService {
     return buildXlsxWorkbook(sheet);
   }
 
-  async deleteBooking(businessId: string, id: string): Promise<void> {
+  async deleteBooking(businessId: string, id: string, bookedVia?: string): Promise<void> {
     const booking = await Booking.findById(id);
     if (!booking) {
       throw new AppError("Booking not found", 404);
     }
 
     if (booking.businessId.toString() !== businessId) {
+      throw new AppError("You are not authorized to delete this booking", 403);
+    }
+
+    if (bookedVia && booking.bookedVia !== bookedVia) {
       throw new AppError("You are not authorized to delete this booking", 403);
     }
 

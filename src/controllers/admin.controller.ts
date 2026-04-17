@@ -5,13 +5,13 @@ import { BookingStatus } from "../models/Booking";
 import AppError from "../utils/AppError";
 
 export const getDashboard = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const businessId = _req.businessId!;
-    const stats = await bookingService.getDashboardStats(businessId);
+    const businessId = req.businessId!;
+    const stats = await bookingService.getDashboardStats(businessId, req.bookedVia);
     res.json({ success: true, data: stats });
   } catch (error) {
     next(error);
@@ -33,6 +33,7 @@ export const getAllBookings = async (
       page: page ? parseInt(page as string, 10) : 1,
       limit: limit ? parseInt(limit as string, 10) : 20,
       search: search as string | undefined,
+      bookedVia: req.bookedVia,
     });
     res.json({ success: true, data: result });
   } catch (error) {
@@ -58,6 +59,7 @@ export const updateBookingStatus = async (
       id,
       status,
       actualExitTime,
+      req.bookedVia,
     );
     res.json({ success: true, data: booking });
   } catch (error) {
@@ -74,6 +76,7 @@ export const exportBookings = async (
     const businessId = req.businessId!;
     const workbook = await bookingService.exportBookingsExcel({
       businessId,
+      bookedVia: req.bookedVia,
       ...req.body,
     });
     const fileName = `bookings-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -101,7 +104,7 @@ export const deleteBooking = async (
     }
 
     const businessId = req.businessId!;
-    await bookingService.deleteBooking(businessId, id);
+    await bookingService.deleteBooking(businessId, id, req.bookedVia);
 
     res.json({
       success: true,
@@ -122,6 +125,7 @@ export const bulkDeleteBookings = async (
     const businessId = req.businessId!;
     const result = await bookingService.bulkDeleteBookings({
       businessId,
+      bookedVia: req.bookedVia,
       ...req.body,
     });
 

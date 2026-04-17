@@ -1,5 +1,11 @@
+import fs from "fs";
+import path from "path";
 import { IBooking } from "../models/Booking";
-import { getBusinessEmailConfig, getCompareEmailConfig, COMPARE_SITE_NAME } from "../config";
+import {
+  getBusinessEmailConfig,
+  getCompareEmailConfig,
+  COMPARE_SITE_NAME,
+} from "../config";
 import { createTransporter } from "../config/transporter";
 import {
   calculateChargeableDays,
@@ -19,10 +25,13 @@ class EmailService {
     const transporter = createTransporter(smtpCfg, "booking");
     const isConfigured = !!(smtpCfg.bookingSmtpUser && smtpCfg.bookingSmtpPass);
 
-    const startDate = new Date(booking.bookedStartTime).toLocaleString("en-GB", {
-      dateStyle: "full",
-      timeStyle: "short",
-    });
+    const startDate = new Date(booking.bookedStartTime).toLocaleString(
+      "en-GB",
+      {
+        dateStyle: "full",
+        timeStyle: "short",
+      },
+    );
     const endDate = new Date(booking.bookedEndTime).toLocaleString("en-GB", {
       dateStyle: "full",
       timeStyle: "short",
@@ -76,10 +85,11 @@ class EmailService {
             </div>
             <div class="body-content">
               <p>Dear <strong>${booking.userName}</strong>,</p>
-              ${isCompareSite
-                ? `<p>Your parking has been booked successfully through <strong>${COMPARE_SITE_NAME}</strong>. Your parking services are provided by <strong>${cfg.brandName}</strong>. Here are your booking details:</p>
+              ${
+                isCompareSite
+                  ? `<p>Your parking has been booked successfully through <strong>${COMPARE_SITE_NAME}</strong>. Your parking services are provided by <strong>${cfg.brandName}</strong>. Here are your booking details:</p>
                    <div class="provider-note">Parking services provided by <strong>${cfg.brandName}</strong> — booked via <strong>${COMPARE_SITE_NAME}</strong>.</div>`
-                : `<p>Your parking has been booked successfully! Here are your booking details:</p>`
+                  : `<p>Your parking has been booked successfully! Here are your booking details:</p>`
               }
 
               <div class="tracking-box">
@@ -166,17 +176,29 @@ class EmailService {
       ? `${COMPARE_SITE_NAME} — ${cfg.brandName}`
       : cfg.brandName;
 
+    const attachments: { filename: string; path: string }[] = [];
+    if (cfg.termsPdfPath && fs.existsSync(cfg.termsPdfPath)) {
+      attachments.push({
+        filename: path.basename(cfg.termsPdfPath),
+        path: cfg.termsPdfPath,
+      });
+    }
+
     const mailOptions = {
       from: `"${senderName}" <${senderEmail}>`,
       to: booking.userEmail,
       subject: `Booking Confirmed - ${booking.trackingNumber} | ${subjectSuffix}`,
       html,
+      attachments,
     };
 
     try {
       const info = await transporter.sendMail(mailOptions);
       if (!isConfigured) {
-        console.log("📧 Email (dev mode):", JSON.parse((info as any).message).subject);
+        console.log(
+          "📧 Email (dev mode):",
+          JSON.parse((info as any).message).subject,
+        );
       } else {
         console.log("📧 Email sent:", (info as any).messageId);
       }

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { bookingService } from "../services/booking.service";
 import { pricingService } from "../services/pricing.service";
 import { Business } from "../models/Business";
+import { BusinessTier } from "../models/BusinessTier";
 import AppError from "../utils/AppError";
 
 export const createBooking = async (
@@ -63,7 +64,7 @@ export const calculatePrice = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { startTime, endTime } = req.query;
+    const { startTime, endTime, tierId } = req.query;
     const businessId = req.businessId!;
 
     if (!startTime || !endTime) {
@@ -77,8 +78,23 @@ export const calculatePrice = async (
       businessId,
       new Date(startTime as string),
       new Date(endTime as string),
+      typeof tierId === "string" ? tierId : undefined,
     );
     res.json({ success: true, data: priceCalc });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/bookings/tiers — public list of active service tiers */
+export const getActiveTiers = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const tiers = await BusinessTier.find({ isActive: true }).sort({ createdAt: 1 });
+    res.json({ success: true, data: tiers });
   } catch (error) {
     next(error);
   }

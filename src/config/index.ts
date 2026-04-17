@@ -1,11 +1,16 @@
 import dotenv from "dotenv";
+import path from "path";
 dotenv.config();
+
+const REPO_ROOT = path.resolve(process.cwd(), "..");
 
 // ── Business IDs ────────────────────────────────────────────────────────────
 export const PARKPRO_BUSINESS_ID =
   process.env.PARKPRO_BUSINESS_ID || "69c58c8616860ff720b40e4c";
 export const HEATHROW_BUSINESS_ID =
   process.env.HEATHROW_BUSINESS_ID || "69d3f081f2245d52c5927d3d";
+export const PARKEASE_BUSINESS_ID =
+  process.env.PARKEASE_BUSINESS_ID || "69e0c88358667024ac151f2e";
 
 // ── Compare site ─────────────────────────────────────────────────────────────
 export const COMPARE_SITE_NAME = "Heathrow Compare Parking";
@@ -35,6 +40,8 @@ export interface BusinessEmailConfig {
   primaryColor: string;
   /** Primary brand color with transparency for backgrounds. */
   primaryBgColor: string;
+  /** Absolute path to the brand's T&C PDF, attached to confirmation emails. */
+  termsPdfPath?: string;
 }
 
 const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
@@ -58,6 +65,22 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     primaryColor: "#7c3aed",
     primaryBgColor: "#ede9fe",
   },
+  [PARKEASE_BUSINESS_ID]: {
+    smtpHost: process.env.PARKPRO_SMTP_HOST || "premium334.web-hosting.com",
+    smtpPort: parseInt(process.env.PARKPRO_SMTP_PORT || "465", 10),
+    bookingSmtpUser: process.env.PARKPRO_BOOKING_SMTP_USER || "booking@parkease.uk",
+    bookingSmtpPass: process.env.PARKPRO_BOOKING_SMTP_PASS || "",
+    bookingEmailFrom: process.env.PARKPRO_BOOKING_EMAIL_FROM || "booking@parkease.uk",
+    contactSmtpUser: process.env.PARKPRO_CONTACT_SMTP_USER || "info@parkease.uk",
+    contactSmtpPass: process.env.PARKPRO_CONTACT_SMTP_PASS || "",
+    contactEmail: process.env.PARKPRO_CONTACT_EMAIL || "info@parkease.uk",
+    brandName: "ParkEase",
+    frontendUrl: process.env.PARKPRO_FRONTEND_URL || "https://parkease.uk",
+    logoUrl: "https://parkease.uk/logo.svg",
+    showBrandName: true,
+    primaryColor: "#fe6f09",
+    primaryBgColor: "#ff8b338f",
+  },
   [PARKPRO_BUSINESS_ID]: {
     smtpHost: process.env.PARKPRO_SMTP_HOST || "premium334.web-hosting.com",
     smtpPort: parseInt(process.env.PARKPRO_SMTP_PORT || "465", 10),
@@ -73,6 +96,7 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     showBrandName: true,
     primaryColor: "#fe6f09",
     primaryBgColor: "#ff8b338f",
+    termsPdfPath: process.env.PARKPRO_TERMS_PDF || path.join(REPO_ROOT, "ParkPro/public/TERMS-AND-CONDITIONS-PARKPRO-PARKING-LIMITED.pdf"),
   },
   [HEATHROW_BUSINESS_ID]: {
     smtpHost: process.env.HEATHROW_SMTP_HOST || "premium334.web-hosting.com",
@@ -94,6 +118,7 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     showBrandName: false,
     primaryColor: "#21aeca",
     primaryBgColor: "#21aeca7a",
+    termsPdfPath: process.env.HEATHROW_TERMS_PDF || path.join(REPO_ROOT, "HeathrowSafeParking/public/TERMS-AND-CONDITIONS-HEATHROW-SAFE-PARKING-LIMITED.pdf"),
   },
 };
 

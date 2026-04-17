@@ -5,6 +5,7 @@ import {
   getBookingByTracking,
   calculatePrice,
   getBookingStatus,
+  getActiveTiers,
 } from "../controllers/booking.controller";
 import { getPublicPricingBreakdown } from "../controllers/pricing.controller";
 import { validate } from "../middleware/validate";
@@ -15,6 +16,9 @@ const router = Router();
 
 // GET /api/bookings/status — check if booking is enabled (public)
 router.get("/status", attachBusinessId, getBookingStatus);
+
+// GET /api/bookings/tiers — public list of active service tiers
+router.get("/tiers", getActiveTiers);
 
 // GET /api/bookings/pricePerHour
 router.get("/pricePerHour", attachBusinessId, getPricingConfig);

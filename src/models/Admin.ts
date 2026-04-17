@@ -6,6 +6,8 @@ export interface IAdmin extends Document {
   name: string;
   /** The business this admin belongs to. Scopes all data access. */
   businessId: Types.ObjectId;
+  /** When true, this admin belongs to the compare site and can access any business. */
+  isCompareAdmin: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +35,10 @@ const AdminSchema = new Schema<IAdmin>(
       type: Schema.Types.ObjectId,
       ref: "Business",
       required: true,
+    },
+    isCompareAdmin: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true },

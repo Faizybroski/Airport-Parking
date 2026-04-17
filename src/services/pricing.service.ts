@@ -3,6 +3,8 @@ import {
   IPricingConfig,
   IPricingRule,
 } from "../models/PricingConfig";
+import { Business } from "../models/Business";
+import { BusinessTier } from "../models/BusinessTier";
 import { calculateChargeableDays, calculateHours } from "../utils/helpers";
 import { AppError } from "../middleware/errorHandler";
 
@@ -339,22 +341,73 @@ class PricingService {
   }
 
   /**
-   * Get current pricing config
+   * Build a synthetic IPricingConfig-like object from a BusinessTier's pricing fields.
+   * This lets the rest of the pricing logic work unchanged regardless of the source.
+   */
+  private buildConfigFromTier(
+    businessId: string,
+    tier: import("../models/BusinessTier").IBusinessTier,
+  ): IPricingConfig {
+    const pricingRules = buildLegacyPricingRules(
+      tier.firstTenDayPrices,
+      tier.day11To30Increment,
+      tier.day31PlusIncrement,
+    );
+
+    // Construct a plain object that satisfies the shape expected by the rest of
+    // the service. We cast it because it is not a real Mongoose document, but
+    // every property accessed downstream is present.
+    return {
+      businessId,
+      pricingRules,
+      firstTenDayPrices: tier.firstTenDayPrices,
+      day11To30Increment: tier.day11To30Increment,
+      day31PlusIncrement: tier.day31PlusIncrement,
+      pricePerHour: undefined,
+      discountRules: undefined,
+      createdAt: tier.createdAt,
+      updatedAt: tier.updatedAt,
+      toObject: () => ({
+        businessId,
+        pricingRules,
+        firstTenDayPrices: tier.firstTenDayPrices,
+        day11To30Increment: tier.day11To30Increment,
+        day31PlusIncrement: tier.day31PlusIncrement,
+      }),
+    } as unknown as IPricingConfig;
+  }
+
+  /**
+   * Get current pricing config.
+   * Resolution order:
+   *   1. Business-specific PricingConfig document.
+   *   2. The tier assigned to the business (if any).
+   *   3. Error — no config found.
    */
   async getConfig(businessId: string): Promise<IPricingConfig> {
     const config = await PricingConfig.findOne({ businessId }).sort({
       createdAt: -1,
     });
 
-    if (!config) {
-      throw new AppError(
-        "Pricing config not found. Please seed the database.",
-        500,
-      );
+    if (config) {
+      config.pricingRules = this.getPricingSnapshot(config).pricingRules;
+      return config;
     }
 
-    config.pricingRules = this.getPricingSnapshot(config).pricingRules;
-    return config;
+    // Fall back to the tier assigned to this business
+    const business = await Business.findById(businessId).populate("tierId");
+    const tier = business?.tierId as import("../models/BusinessTier").IBusinessTier | null | undefined;
+
+    if (tier && tier.isActive) {
+      const syntheticConfig = this.buildConfigFromTier(businessId, tier);
+      syntheticConfig.pricingRules = this.getPricingSnapshot(syntheticConfig).pricingRules;
+      return syntheticConfig;
+    }
+
+    throw new AppError(
+      "Pricing config not found. Please configure pricing or assign a tier to this business.",
+      500,
+    );
   }
 
   /**
@@ -417,14 +470,30 @@ class PricingService {
   }
 
   /**
-   * Calculate price for a booking
+   * Resolve a config for a specific tier ID (bypasses the business's assigned tier).
+   */
+  async getConfigForTier(tierId: string): Promise<IPricingConfig> {
+    const tier = await BusinessTier.findById(tierId);
+    if (!tier || !tier.isActive) {
+      throw new AppError("Selected tier not found or is no longer active.", 404);
+    }
+    const syntheticConfig = this.buildConfigFromTier("", tier);
+    syntheticConfig.pricingRules = this.getPricingSnapshot(syntheticConfig).pricingRules;
+    return syntheticConfig;
+  }
+
+  /**
+   * Calculate price for a booking, optionally using a specific tier.
    */
   async calculatePrice(
     businessId: string,
     startTime: Date,
     endTime: Date,
+    tierId?: string,
   ): Promise<PriceCalculation> {
-    const config = await this.getConfig(businessId);
+    const config = tierId
+      ? await this.getConfigForTier(tierId)
+      : await this.getConfig(businessId);
     const snapshot = this.getPricingSnapshot(config);
     const totalHours = calculateHours(startTime, endTime);
     const totalDays = calculateChargeableDays(startTime, endTime);
@@ -447,16 +516,8 @@ class PricingService {
     businessId: string,
     days: number,
   ): Promise<PricingBreakdown> {
-    const config = await PricingConfig.findOne({ businessId }).sort({
-      createdAt: -1,
-    });
-
-    if (!config) {
-      throw new AppError(
-        "Pricing config not found. Please seed the database.",
-        500,
-      );
-    }
+    // Reuse getConfig so tier fallback is handled in one place
+    const config = await this.getConfig(businessId);
 
     const tieredConfig = this.getTieredConfig(config);
     const snapshot = this.getPricingSnapshot(config);

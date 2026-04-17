@@ -96,7 +96,7 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     showBrandName: true,
     primaryColor: "#fe6f09",
     primaryBgColor: "#ff8b338f",
-    termsPdfPath: process.env.PARKPRO_TERMS_PDF || path.join(REPO_ROOT, "ParkPro/public/TERMS-AND-CONDITIONS-PARKPRO-PARKING-LIMITED.pdf"),
+    termsPdfPath: "https://parkpro.uk/TERMS-AND-CONDITIONS-PARKPRO-PARKING-LIMITED.pdf",
   },
   [HEATHROW_BUSINESS_ID]: {
     smtpHost: process.env.HEATHROW_SMTP_HOST || "premium334.web-hosting.com",
@@ -118,7 +118,7 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     showBrandName: false,
     primaryColor: "#21aeca",
     primaryBgColor: "#21aeca7a",
-    termsPdfPath: process.env.HEATHROW_TERMS_PDF || path.join(REPO_ROOT, "HeathrowSafeParking/public/TERMS-AND-CONDITIONS-HEATHROW-SAFE-PARKING-LIMITED.pdf"),
+    termsPdfPath: "https://heathrowsafeparking.com/TERMS-AND-CONDITIONS-HEATHROW-SAFE-PARKING-LIMITED.pdf",
   },
 };
 

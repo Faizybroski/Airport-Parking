@@ -280,10 +280,10 @@ class EmailService {
                 ${booking.departureFlightNo ? `<tr class="detail-row"><td class="label">Departure Flight</td><td class="value">${booking.departureFlightNo}</td></tr>` : ""}
                 ${booking.arrivalTerminal ? `<tr class="detail-row"><td class="label">Arrival Terminal</td><td class="value">${booking.arrivalTerminal}</td></tr>` : ""}
                 ${booking.arrivalFlightNo ? `<tr class="detail-row"><td class="label">Arrival Flight</td><td class="value">${booking.arrivalFlightNo}</td></tr>` : ""}
-              </table>
-              <div class="terminal-message">
-                <strong>Please call us on +447903835808, 30 minutes prior to your arrival at the airport</strong>
-              </div>
+              </table>`
+                  : ""
+              }
+             
               <div class="price-box">
                 <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Total Price</div>
                 <div class="amount">${formatPrice(booking.totalPrice)}</div>

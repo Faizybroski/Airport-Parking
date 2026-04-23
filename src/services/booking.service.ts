@@ -17,6 +17,8 @@ type BookingListParams = {
   limit?: number;
   search?: string;
   bookedVia?: string;
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 type BookingSelectionScope = BookingBulkSelectionInput & {
@@ -24,7 +26,7 @@ type BookingSelectionScope = BookingBulkSelectionInput & {
   bookedVia?: string;
 };
 
-const MAX_BOOKINGS_PAGE_SIZE = 100;
+const MAX_BOOKINGS_PAGE_SIZE = 1000;
 
 const formatTimestampForExport = (value?: Date | null): string => {
   if (!value) {
@@ -164,7 +166,9 @@ class BookingService {
     status,
     search,
     bookedVia,
-  }: Pick<BookingListParams, "businessId" | "status" | "search" | "bookedVia">) {
+    dateFrom,
+    dateTo,
+  }: Pick<BookingListParams, "businessId" | "status" | "search" | "bookedVia" | "dateFrom" | "dateTo">) {
     const query: Record<string, unknown> = { businessId };
     const normalizedSearch = search?.trim();
 
@@ -185,6 +189,19 @@ class BookingService {
       ];
     }
 
+    if (dateFrom || dateTo) {
+      const dateFilter: { $gte?: Date; $lte?: Date } = {};
+      if (dateFrom) {
+        dateFilter.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setUTCHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+      }
+      query.bookedStartTime = dateFilter;
+    }
+
     return query;
   }
 
@@ -196,6 +213,8 @@ class BookingService {
     search,
     status,
     bookedVia,
+    dateFrom,
+    dateTo,
   }: BookingSelectionScope) {
     if (selectionMode === "selected") {
       const q: Record<string, unknown> = {
@@ -211,6 +230,8 @@ class BookingService {
       status,
       search,
       bookedVia,
+      dateFrom,
+      dateTo,
     });
 
     if (excludeIds.length > 0) {
@@ -240,8 +261,8 @@ class BookingService {
     totalPages: number;
     limit: number;
   }> {
-    const { businessId, status, page = 1, limit = 20, search, bookedVia } = params;
-    const query = this.buildBookingsQuery({ businessId, status, search, bookedVia });
+    const { businessId, status, page = 1, limit = 20, search, bookedVia, dateFrom, dateTo } = params;
+    const query = this.buildBookingsQuery({ businessId, status, search, bookedVia, dateFrom, dateTo });
     const normalizedLimit = Math.min(
       MAX_BOOKINGS_PAGE_SIZE,
       Math.max(1, Math.trunc(limit)),

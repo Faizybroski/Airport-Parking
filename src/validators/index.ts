@@ -56,6 +56,8 @@ export const bookingBulkSelectionSchema = z
     excludeIds: z.array(objectIdSchema).optional().default([]),
     search: z.string().trim().optional(),
     status: z.enum(BOOKING_STATUS_VALUES).optional(),
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.selectionMode === "selected" && data.ids.length === 0) {

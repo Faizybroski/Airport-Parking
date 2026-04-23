@@ -24,7 +24,7 @@ export const getAllBookings = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status, page, limit, search } = req.query;
+    const { status, page, limit, search, dateFrom, dateTo } = req.query;
     const businessId = req.businessId!;
 
     const result = await bookingService.getAllBookings({
@@ -34,6 +34,8 @@ export const getAllBookings = async (
       limit: limit ? parseInt(limit as string, 10) : 20,
       search: search as string | undefined,
       bookedVia: req.bookedVia,
+      dateFrom: dateFrom as string | undefined,
+      dateTo: dateTo as string | undefined,
     });
     res.json({ success: true, data: result });
   } catch (error) {

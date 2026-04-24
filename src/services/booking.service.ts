@@ -169,7 +169,11 @@ class BookingService {
     dateFrom,
     dateTo,
   }: Pick<BookingListParams, "businessId" | "status" | "search" | "bookedVia" | "dateFrom" | "dateTo">) {
-    const query: Record<string, unknown> = { businessId };
+    // const query: Record<string, unknown> = { businessId };
+    let query: Record<string, unknown> = {}
+    if (businessId != "compare") {
+      query.businessId = businessId;
+    }
     const normalizedSearch = search?.trim();
 
     if (status) {

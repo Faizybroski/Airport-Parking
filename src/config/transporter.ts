@@ -22,10 +22,9 @@ export const createTransporter = (cfg: BusinessEmailConfig, type: "booking" | "c
     secure: cfg.smtpPort === 465,
     auth: { user, pass },
     pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
-    connectionTimeout: 10_000,
-    socketTimeout: 15_000,
+    maxConnections: 3,
+    maxMessages: Infinity,
+    // Use nodemailer defaults (2 min) — shared hosting SMTP can be slow to connect
   });
 
   transporterCache.set(cacheKey, transporter);

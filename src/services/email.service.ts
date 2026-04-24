@@ -1082,6 +1082,206 @@ class EmailService {
       // Don't throw — email failure shouldn't break the booking
     }
   }
+
+  async sendPasswordResetEmail(
+    to: string,
+    adminName: string,
+    resetToken: string,
+    businessId: string,
+  ): Promise<void> {
+    const cfg = getBusinessEmailConfig(businessId);
+    const transporter = createTransporter(cfg, "booking");
+
+    const resetUrl = `${cfg.frontendUrl}/admin/reset-password?token=${resetToken}`;
+    const year = new Date().getFullYear();
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              font-family: 'Segoe UI', Arial, sans-serif;
+              background: #ECEEF2;
+              padding: 32px 16px;
+              -webkit-font-smoothing: antialiased;
+            }
+            .wrapper { max-width: 560px; margin: 0 auto; }
+            .card {
+              background: #ffffff;
+              border-radius: 20px;
+              overflow: hidden;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.08);
+            }
+            .header {
+              background: ${cfg.primaryBgColor};
+              padding: 32px;
+              text-align: center;
+              position: relative;
+            }
+            .header::after {
+              content: '';
+              display: block;
+              position: absolute;
+              bottom: -1px; left: 0; right: 0;
+              height: 24px;
+              background: #fff;
+              border-radius: 24px 24px 0 0;
+            }
+            .header-inner {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 14px;
+            }
+            .header img {
+              height: 40px;
+              width: auto;
+              filter: brightness(0) invert(1);
+            }
+            .header .brand {
+              font-size: 22px;
+              font-weight: 600;
+              color: #fff;
+              letter-spacing: -0.5px;
+            }
+            .body { padding: 8px 36px 36px; }
+            .greeting {
+              font-size: 15px;
+              color: #444;
+              line-height: 1.6;
+              margin-bottom: 24px;
+            }
+            .greeting strong { color: #111; }
+            .reset-box {
+              background: #f8f8f8;
+              border: 1px solid #eee;
+              border-radius: 14px;
+              padding: 28px;
+              text-align: center;
+              margin-bottom: 28px;
+            }
+            .reset-box p {
+              font-size: 13px;
+              color: #888;
+              margin-bottom: 18px;
+              line-height: 1.5;
+            }
+            .btn {
+              display: inline-block;
+              background: ${cfg.primaryColor};
+              color: #ffffff !important;
+              text-decoration: none;
+              font-size: 15px;
+              font-weight: 600;
+              padding: 14px 32px;
+              border-radius: 10px;
+              letter-spacing: 0.2px;
+            }
+            .token-fallback {
+              margin-top: 20px;
+              font-size: 12px;
+              color: #aaa;
+              word-break: break-all;
+              line-height: 1.6;
+            }
+            .token-fallback code {
+              display: inline-block;
+              background: #f3f3f3;
+              border: 1px solid #e5e5e5;
+              border-radius: 6px;
+              padding: 8px 12px;
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              color: #555;
+              margin-top: 6px;
+              word-break: break-all;
+            }
+            .warning {
+              background: #fffbeb;
+              border: 1px solid #fde68a;
+              border-radius: 10px;
+              padding: 14px 18px;
+              font-size: 13px;
+              color: #92400e;
+              margin-bottom: 24px;
+              line-height: 1.5;
+            }
+            .divider { height: 1px; background: #f0f0f0; margin: 24px 0; }
+            .help-text {
+              font-size: 13px;
+              color: #aaa;
+              text-align: center;
+              line-height: 1.6;
+            }
+            .footer {
+              padding: 20px 36px;
+              text-align: center;
+              background: #f9f9f9;
+              border-top: 1px solid #f0f0f0;
+            }
+            .footer p { font-size: 12px; color: #bbb; line-height: 1.7; }
+          </style>
+        </head>
+        <body>
+          <div class="wrapper">
+            <div class="card">
+              <div class="header">
+                <div class="header-inner">
+                  <img src="${cfg.logoUrl}" alt="${cfg.brandName} logo" />
+                  ${cfg.showBrandName ? `<span class="brand">${cfg.brandName.toUpperCase()}</span>` : ""}
+                </div>
+              </div>
+              <div class="body">
+                <p class="greeting">
+                  Hi <strong>${adminName}</strong>,<br />
+                  We received a request to reset your admin password. Click the button below to set a new password.
+                </p>
+
+                <div class="reset-box">
+                  <p>This link is valid for <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email.</p>
+                  <a href="${resetUrl}" class="btn">Reset Password</a>
+                  <div class="token-fallback">
+                    If the button doesn't work, copy and paste this link into your browser:<br />
+                    <code>${resetUrl}</code>
+                  </div>
+                </div>
+
+                <div class="warning">
+                  For your security, never share this link with anyone. ${cfg.brandName} staff will never ask for your password.
+                </div>
+
+                <div class="divider"></div>
+                <p class="help-text">
+                  If you did not request a password reset, please contact your administrator immediately.
+                </p>
+              </div>
+              <div class="footer">
+                <p>© ${year} ${cfg.brandName}. All rights reserved.</p>
+                <p>This is an automated security email. Please do not reply.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    try {
+      const info = await transporter.sendMail({
+        from: `"${cfg.brandName}" <${cfg.bookingEmailFrom}>`,
+        to,
+        subject: `Reset your ${cfg.brandName} admin password`,
+        html,
+      });
+      console.log("📧 Password reset email sent:", (info as any).messageId ?? "dev");
+    } catch (error) {
+      console.error("❌ Password reset email failed:", error);
+      throw error;
+    }
+  }
 }
 
 export const emailService = new EmailService();

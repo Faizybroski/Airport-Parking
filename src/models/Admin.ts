@@ -8,6 +8,8 @@ export interface IAdmin extends Document {
   businessId: Types.ObjectId;
   /** When true, this admin belongs to the compare site and can access any business. */
   isCompareAdmin: boolean;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +41,14 @@ const AdminSchema = new Schema<IAdmin>(
     isCompareAdmin: {
       type: Boolean,
       default: false,
+    },
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      select: false,
     },
   },
   { timestamps: true },

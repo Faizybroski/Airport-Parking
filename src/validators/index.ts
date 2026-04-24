@@ -47,6 +47,20 @@ export const adminLoginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+});
+
 const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid booking id");
 
 export const bookingBulkSelectionSchema = z
@@ -213,3 +227,6 @@ export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 export type BookingBulkSelectionInput = z.infer<typeof bookingBulkSelectionSchema>;
 export type PricingConfigInput = z.infer<typeof pricingConfigSchema>;
 export type UpdateTerminalMessagesInput = z.infer<typeof updateTerminalMessagesSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

@@ -85,7 +85,7 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     frontendUrl:
       process.env.PARKEASE_FRONTEND_URL || "https://park-ease-eta.vercel.app",
     logoUrl: "https://park-ease-eta.vercel.app/logo.svg",
-    showBrandName: true,
+    showBrandName: false,
     primaryColor: "#216269",
     primaryBgColor: "#39a9b5",
     termsPdfPath:

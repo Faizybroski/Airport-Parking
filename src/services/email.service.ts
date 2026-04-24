@@ -1,10 +1,13 @@
 import fs from "fs";
+import https from "https";
+import http from "http";
 import path from "path";
 import { IBooking } from "../models/Booking";
 import { Business } from "../models/Business";
 import {
   getBusinessEmailConfig,
   getCompareEmailConfig,
+  getAllBusinessEmailConfigs,
   COMPARE_SITE_NAME,
 } from "../config";
 import { createTransporter } from "../config/transporter";
@@ -15,7 +18,66 @@ import {
   formatPrice,
 } from "../utils/helpers";
 
+// Pre-fetched PDF buffers keyed by URL — populated once at startup
+const pdfBufferCache = new Map<string, { filename: string; content: Buffer }>();
+
+function fetchBuffer(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith("https://") ? https : http;
+    client.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode} fetching ${url}`));
+        res.resume();
+        return;
+      }
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () => resolve(Buffer.concat(chunks)));
+      res.on("error", reject);
+    }).on("error", reject);
+  });
+}
+
 class EmailService {
+  /** Call once at server startup to open SMTP connections and cache PDFs. */
+  async warmup(): Promise<void> {
+    const configs = getAllBusinessEmailConfigs();
+
+    // Pre-fetch all PDF URLs in parallel
+    await Promise.allSettled(
+      configs
+        .filter((cfg) => cfg.termsPdfPath?.startsWith("http"))
+        .map(async (cfg) => {
+          const url = cfg.termsPdfPath!;
+          if (pdfBufferCache.has(url)) return;
+          try {
+            const content = await fetchBuffer(url);
+            pdfBufferCache.set(url, { filename: path.basename(url), content });
+            console.log(`📎 PDF cached: ${path.basename(url)}`);
+          } catch (err) {
+            console.warn(`⚠️  Could not pre-fetch PDF ${url}:`, (err as Error).message);
+          }
+        }),
+    );
+
+    // Pre-warm SMTP connection pools for all configured businesses
+    const seen = new Set<string>();
+    await Promise.allSettled(
+      configs.map(async (cfg) => {
+        const key = `${cfg.smtpHost}:${cfg.smtpPort}:${cfg.bookingSmtpUser}`;
+        if (!cfg.bookingSmtpUser || !cfg.bookingSmtpPass || seen.has(key)) return;
+        seen.add(key);
+        try {
+          const t = createTransporter(cfg, "booking");
+          await t.verify();
+          console.log(`✅ SMTP ready: ${cfg.smtpHost} (${cfg.brandName})`);
+        } catch (err) {
+          console.warn(`⚠️  SMTP verify failed for ${cfg.brandName}:`, (err as Error).message);
+        }
+      }),
+    );
+  }
+
   async sendBookingConfirmation(booking: IBooking): Promise<void> {
     const businessId = booking.businessId.toString();
     // Brand config drives the template (logo, colours, brand name).
@@ -161,7 +223,7 @@ class EmailService {
                 ${booking.arrivalFlightNo ? `<tr class="detail-row"><td class="label">Arrival Flight</td><td class="value">${booking.arrivalFlightNo}</td></tr>` : ""}
               </table>
               <div class="terminal-message">
-                <strong>Please call us on +447903835808, 30 minutes prior to your arrival at the airport</strong>
+                <strong>Please ensure you contact our team on +44 7903 835808 at least 30 minutes prior to your arrival at the airport, so we can coordinate your booking and provide a smooth, timely service.</strong>
               </div>
               
               ${
@@ -306,12 +368,20 @@ class EmailService {
       ? `${COMPARE_SITE_NAME} — ${cfg.brandName}`
       : cfg.brandName;
 
-    const attachments: { filename: string; path: string }[] = [];
-    if (cfg.termsPdfPath && fs.existsSync(cfg.termsPdfPath)) {
-      attachments.push({
-        filename: path.basename(cfg.termsPdfPath),
-        path: cfg.termsPdfPath,
-      });
+    const attachments: { filename: string; content?: Buffer; path?: string; href?: string }[] = [];
+    if (cfg.termsPdfPath) {
+      const isUrl = cfg.termsPdfPath.startsWith("http://") || cfg.termsPdfPath.startsWith("https://");
+      if (isUrl) {
+        const cached = pdfBufferCache.get(cfg.termsPdfPath);
+        if (cached) {
+          attachments.push({ filename: cached.filename, content: cached.content });
+        } else {
+          // Fallback: let nodemailer fetch it (warmup hasn't run or failed for this URL)
+          attachments.push({ filename: path.basename(cfg.termsPdfPath), href: cfg.termsPdfPath });
+        }
+      } else if (fs.existsSync(cfg.termsPdfPath)) {
+        attachments.push({ filename: path.basename(cfg.termsPdfPath), path: cfg.termsPdfPath });
+      }
     }
 
     const mailOptions = {
@@ -323,23 +393,23 @@ class EmailService {
     };
 
     try {
-      const info = await transporter.sendMail(mailOptions);
+      const sends: Promise<any>[] = [transporter.sendMail(mailOptions)];
       if (isCompareSite) {
-        const compare = await transporter.sendMail({
-          from: `"${senderName}" <${senderEmail}>`,
-          to: "Compareheathrowparking@gmail.com",
-          subject: `Booking Confirmed - ${booking.trackingNumber} | ${subjectSuffix}`,
-          html: compareHTML,
-        });
-        console.log("📧 Compare email sent:", (compare as any).messageId);
-      }
-      if (!isConfigured) {
-        console.log(
-          "📧 Email (dev mode):",
-          JSON.parse((info as any).message).subject,
+        sends.push(
+          transporter.sendMail({
+            from: `"${senderName}" <${senderEmail}>`,
+            to: "Compareheathrowparking@gmail.com",
+            subject: `Booking Confirmed - ${booking.trackingNumber} | ${subjectSuffix}`,
+            html: compareHTML,
+          }),
         );
+      }
+      const [info, compare] = await Promise.all(sends);
+      if (!isConfigured) {
+        console.log("📧 Email (dev mode):", JSON.parse((info as any).message).subject);
       } else {
         console.log("📧 Email sent:", (info as any).messageId);
+        if (compare) console.log("📧 Compare email sent:", (compare as any).messageId);
       }
     } catch (error) {
       console.error("❌ Email send failed:", error);

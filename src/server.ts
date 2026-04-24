@@ -13,6 +13,7 @@ import compareAdminRoutes from "./routes/compareAdmin.routes";
 import paymentRoutes from "./routes/payment.routes";
 import contactRoutes from "./routes/contact.routes";
 import { stripeWebhook } from "./controllers/payment.controller";
+import { emailService } from "./services/email.service";
 
 const app = express();
 
@@ -75,6 +76,8 @@ const startServer = async () => {
       `📊 Health check: http://localhost:${config.port}/api/health\n`,
     );
   });
+  // Pre-warm SMTP connections and cache PDFs — runs in background, doesn't block startup
+  emailService.warmup().catch(console.error);
 };
 
 startServer().catch(console.error);

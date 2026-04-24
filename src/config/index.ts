@@ -49,17 +49,20 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     smtpHost: process.env.COMPARE_SMTP_HOST || "premium334.web-hosting.com",
     smtpPort: parseInt(process.env.COMPARE_SMTP_PORT || "465", 10),
     bookingSmtpUser:
-      process.env.COMPARE_BOOKING_SMTP_USER || "booking@compareheathrowparking.uk",
+      process.env.COMPARE_BOOKING_SMTP_USER ||
+      "booking@compareheathrowparking.uk",
     bookingSmtpPass: process.env.COMPARE_BOOKING_SMTP_PASS || "",
     bookingEmailFrom:
-      process.env.COMPARE_BOOKING_EMAIL_FROM || "booking@compareheathrowparking.uk",
+      process.env.COMPARE_BOOKING_EMAIL_FROM ||
+      "booking@compareheathrowparking.uk",
     contactSmtpUser:
       process.env.COMPARE_CONTACT_SMTP_USER || "info@compareheathrowparking.uk",
     contactSmtpPass: process.env.COMPARE_CONTACT_SMTP_PASS || "",
     contactEmail:
       process.env.COMPARE_CONTACT_EMAIL || "info@compareheathrowparking.uk",
     brandName: COMPARE_SITE_NAME,
-    frontendUrl: process.env.COMPARE_FRONTEND_URL || "https://compareheathrowparking.uk",
+    frontendUrl:
+      process.env.COMPARE_FRONTEND_URL || "https://compareheathrowparking.uk",
     logoUrl: "https://compareheathrowparking.uk/logo.svg",
     showBrandName: true,
     primaryColor: "#7c3aed",
@@ -68,25 +71,34 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
   [PARKEASE_BUSINESS_ID]: {
     smtpHost: process.env.PARKEASE_SMTP_HOST || "smtp.gmail.com",
     smtpPort: parseInt(process.env.PARKEASE_SMTP_PORT || "587", 10),
-    bookingSmtpUser: process.env.PARKEASE_BOOKING_SMTP_USER || "parkeaseparking@gmail.com",
+    bookingSmtpUser:
+      process.env.PARKEASE_BOOKING_SMTP_USER || "parkeaseparking@gmail.com",
     bookingSmtpPass: process.env.PARKEASE_BOOKING_SMTP_PASS || "",
-    bookingEmailFrom: process.env.PARKEASE_BOOKING_EMAIL_FROM || "parkeaseparking@gmail.com",
-    contactSmtpUser: process.env.PARKEASE_CONTACT_SMTP_USER || "parkeaseparking@gmail.com",
+    bookingEmailFrom:
+      process.env.PARKEASE_BOOKING_EMAIL_FROM || "parkeaseparking@gmail.com",
+    contactSmtpUser:
+      process.env.PARKEASE_CONTACT_SMTP_USER || "parkeaseparking@gmail.com",
     contactSmtpPass: process.env.PARKEASE_CONTACT_SMTP_PASS || "",
-    contactEmail: process.env.PARKEASE_CONTACT_EMAIL || "parkeaseparking@gmail.com",
+    contactEmail:
+      process.env.PARKEASE_CONTACT_EMAIL || "parkeaseparking@gmail.com",
     brandName: "ParkEase",
-    frontendUrl: process.env.PARKEASE_FRONTEND_URL || "https://park-ease-eta.vercel.app",
+    frontendUrl:
+      process.env.PARKEASE_FRONTEND_URL || "https://park-ease-eta.vercel.app",
     logoUrl: "https://park-ease-eta.vercel.app/logo.svg",
     showBrandName: true,
     primaryColor: "#fe6f09",
     primaryBgColor: "#ff8b338f",
+    termsPdfPath:
+      "https://park-ease-eta.vercel.app/TERMS-AND-CONDITIONS-PARKEASE-PARKING-LIMITED.pdf",
   },
   [PARKPRO_BUSINESS_ID]: {
     smtpHost: process.env.PARKPRO_SMTP_HOST || "premium334.web-hosting.com",
     smtpPort: parseInt(process.env.PARKPRO_SMTP_PORT || "465", 10),
-    bookingSmtpUser: process.env.PARKPRO_BOOKING_SMTP_USER || "booking@parkpro.uk",
+    bookingSmtpUser:
+      process.env.PARKPRO_BOOKING_SMTP_USER || "booking@parkpro.uk",
     bookingSmtpPass: process.env.PARKPRO_BOOKING_SMTP_PASS || "",
-    bookingEmailFrom: process.env.PARKPRO_BOOKING_EMAIL_FROM || "booking@parkpro.uk",
+    bookingEmailFrom:
+      process.env.PARKPRO_BOOKING_EMAIL_FROM || "booking@parkpro.uk",
     contactSmtpUser: process.env.PARKPRO_CONTACT_SMTP_USER || "info@parkpro.uk",
     contactSmtpPass: process.env.PARKPRO_CONTACT_SMTP_PASS || "",
     contactEmail: process.env.PARKPRO_CONTACT_EMAIL || "info@parkpro.uk",
@@ -96,16 +108,19 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     showBrandName: true,
     primaryColor: "#fe6f09",
     primaryBgColor: "#ff8b338f",
-    termsPdfPath: "https://parkpro.uk/TERMS-AND-CONDITIONS-PARKPRO-PARKING-LIMITED.pdf",
+    termsPdfPath:
+      "https://parkpro.uk/TERMS-AND-CONDITIONS-PARKPRO-PARKING-LIMITED.pdf",
   },
   [HEATHROW_BUSINESS_ID]: {
     smtpHost: process.env.HEATHROW_SMTP_HOST || "premium334.web-hosting.com",
     smtpPort: parseInt(process.env.HEATHROW_SMTP_PORT || "465", 10),
     bookingSmtpUser:
-      process.env.HEATHROW_BOOKING_SMTP_USER || "booking@heathrowsafeparking.com",
+      process.env.HEATHROW_BOOKING_SMTP_USER ||
+      "booking@heathrowsafeparking.com",
     bookingSmtpPass: process.env.HEATHROW_BOOKING_SMTP_PASS || "",
     bookingEmailFrom:
-      process.env.HEATHROW_BOOKING_EMAIL_FROM || "booking@heathrowsafeparking.com",
+      process.env.HEATHROW_BOOKING_EMAIL_FROM ||
+      "booking@heathrowsafeparking.com",
     contactSmtpUser:
       process.env.HEATHROW_CONTACT_SMTP_USER || "info@heathrowsafeparking.com",
     contactSmtpPass: process.env.HEATHROW_CONTACT_SMTP_PASS || "",
@@ -118,18 +133,28 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
     showBrandName: false,
     primaryColor: "#21aeca",
     primaryBgColor: "#21aeca7a",
-    termsPdfPath: "https://heathrowsafeparking.com/TERMS-AND-CONDITIONS-HEATHROW-SAFE-PARKING-LIMITED.pdf",
+    termsPdfPath:
+      "https://heathrowsafeparking.com/TERMS-AND-CONDITIONS-HEATHROW-SAFE-PARKING-LIMITED.pdf",
   },
 };
 
 /** Returns the email config for a given businessId, falling back to ParkPro. */
-export const getBusinessEmailConfig = (businessId: string): BusinessEmailConfig => {
-  return businessEmailConfigs[businessId] ?? businessEmailConfigs[PARKPRO_BUSINESS_ID];
+export const getBusinessEmailConfig = (
+  businessId: string,
+): BusinessEmailConfig => {
+  return (
+    businessEmailConfigs[businessId] ??
+    businessEmailConfigs[PARKPRO_BUSINESS_ID]
+  );
 };
 
 /** Returns the compare site email config (always — no fallback needed). */
 export const getCompareEmailConfig = (): BusinessEmailConfig =>
   businessEmailConfigs[COMPARE_BUSINESS_ID];
+
+/** Returns all business email configs (used for pre-warming at startup). */
+export const getAllBusinessEmailConfigs = (): BusinessEmailConfig[] =>
+  Object.values(businessEmailConfigs);
 
 // ── General config ───────────────────────────────────────────────────────────
 export const config = {

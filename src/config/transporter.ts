@@ -21,10 +21,8 @@ export const createTransporter = (cfg: BusinessEmailConfig, type: "booking" | "c
     port: cfg.smtpPort,
     secure: cfg.smtpPort === 465,
     auth: { user, pass },
-    pool: true,
-    maxConnections: 3,
-    maxMessages: Infinity,
-    // Use nodemailer defaults (2 min) — shared hosting SMTP can be slow to connect
+    // No pool — serverless environments kill idle TCP connections between invocations,
+    // causing pooled connections (especially port 465 TLS) to silently fail on reuse.
   });
 
   transporterCache.set(cacheKey, transporter);

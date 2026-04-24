@@ -86,8 +86,8 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
       process.env.PARKEASE_FRONTEND_URL || "https://park-ease-eta.vercel.app",
     logoUrl: "https://park-ease-eta.vercel.app/logo.svg",
     showBrandName: true,
-    primaryColor: "#fe6f09",
-    primaryBgColor: "#ff8b338f",
+    primaryColor: "#216269",
+    primaryBgColor: "#39a9b5",
     termsPdfPath:
       "https://park-ease-eta.vercel.app/TERMS-AND-CONDITIONS-PARKEASE-PARKING-LIMITED.pdf",
   },
@@ -165,7 +165,7 @@ export const config = {
   /** Comma-separated list of allowed CORS origins. */
   frontendUrls: (
     process.env.FRONTEND_URL ||
-    "http://localhost:3000,http://localhost:3002,https://compareheathrowparking.uk,https://www.compareheathrowparking.com"
+    "http://localhost:3000,http://localhost:3002,https://compareheathrowparking.uk,https://www.compareheathrowparking.com,https://parkpro.uk,https://www.parkpro.uk,https://park-ease-eta.vercel.app,https://heathrowsafeparking.com,https://www.heathrowsafeparking.com"
   )
     .split(",")
     .map((u) => u.trim())

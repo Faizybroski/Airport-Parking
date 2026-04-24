@@ -13,7 +13,7 @@ export const PARKEASE_BUSINESS_ID =
   process.env.PARKEASE_BUSINESS_ID || "69e0c88358667024ac151f2e";
 
 // ── Compare site ─────────────────────────────────────────────────────────────
-export const COMPARE_SITE_NAME = "Heathrow Compare Parking";
+export const COMPARE_SITE_NAME = "Compare Heathrow Parking";
 export const COMPARE_FRONTEND_URL =
   process.env.COMPARE_FRONTEND_URL || "https://compareheathrowparking.uk";
 /** Virtual business ID used only for email config routing (no DB entry). */

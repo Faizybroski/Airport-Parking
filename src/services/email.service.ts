@@ -723,7 +723,7 @@ class EmailService {
                   isCompareSite
                     ? `
                 <div class="provider-note">
-                  🏢 Parking services provided by <strong>${cfg.brandName}</strong> — booked via <strong>${COMPARE_SITE_NAME}</strong>.
+                  Parking services provided by <strong>${cfg.brandName}</strong> — booked via <strong>${COMPARE_SITE_NAME}</strong>.
                 </div>
                 `
                     : ""
@@ -739,7 +739,6 @@ class EmailService {
                 <!-- PARKING DETAILS -->
                 <div class="section">
                   <div class="section-header">
-                    <div class="section-icon">📍</div>
                     <div class="section-title">Parking Details</div>
                   </div>
                   <table class="detail-table">
@@ -765,7 +764,6 @@ class EmailService {
                 <!-- VEHICLE DETAILS -->
                 <div class="section">
                   <div class="section-header">
-                    <div class="section-icon">🚗</div>
                     <div class="section-title">Vehicle Details</div>
                   </div>
                   <table class="detail-table">
@@ -793,7 +791,6 @@ class EmailService {
                     ? `
                 <div class="section">
                   <div class="section-header">
-                    <div class="section-icon">✈️</div>
                     <div class="section-title">Flight Details</div>
                   </div>
                   <table class="detail-table">
@@ -841,7 +838,6 @@ class EmailService {
 
                 <!-- CALL AHEAD ALERT -->
                 <div class="alert-box">
-                  <div class="alert-icon">📞</div>
                   <div class="alert-content">
                     <strong>Action Required Before Arrival</strong>
                     <p>Please contact our team on +44 7903 835808 at least 30 minutes prior to your arrival at the airport, so we can coordinate your booking and provide a smooth, timely service.</p>
@@ -857,7 +853,6 @@ class EmailService {
                   terminalMessage
                     ? `
                 <div class="alert-box">
-                  <div class="alert-icon">📍</div>
                   <div class="alert-content">
                     <strong>${booking.departureTerminal || "Terminal"} — Important Information</strong>
                     <p>${terminalMessage}</p>

@@ -94,7 +94,7 @@ class EmailService {
     // When booked via the compare site, use compare SMTP credentials.
     const isCompareSite = booking.bookedVia === "heathrowcompare";
     const smtpCfg = isCompareSite ? getCompareEmailConfig() : cfg;
-    const transporter = createTransporter(smtpCfg, "booking");
+    // const transporter = createTransporter(smtpCfg, "booking");
     const isConfigured = !!(smtpCfg.bookingSmtpUser && smtpCfg.bookingSmtpPass);
 
     const startDate = new Date(booking.bookedStartTime).toLocaleString(
@@ -1054,11 +1054,42 @@ class EmailService {
       attachments,
     };
 
+    // try {
+    //   const sends: Promise<any>[] = [transporter.sendMail(mailOptions)];
+    //   if (isCompareSite) {
+    //     sends.push(
+    //       transporter.sendMail({
+    //         from: `"${senderName}" <${senderEmail}>`,
+    //         to: "Compareheathrowparking@gmail.com",
+    //         subject: `Booking Confirmed - ${booking.trackingNumber} | ${subjectSuffix}`,
+    //         html: compareHTML,
+    //       }),
+    //     );
+    //   }
+    //   const [info, compare] = await Promise.all(sends);
+    //   if (!isConfigured) {
+    //     console.log(
+    //       "📧 Email (dev mode):",
+    //       JSON.parse((info as any).message).subject,
+    //     );
+    //   } else {
+    //     console.log("📧 Email sent:", (info as any).messageId);
+    //     if (compare)
+    //       console.log("📧 Compare email sent:", (compare as any).messageId);
+    //   }
+    // }
     try {
-      const sends: Promise<any>[] = [transporter.sendMail(mailOptions)];
+      const mainTransporter = createTransporter(smtpCfg, "booking");
+
+      const sends: Promise<any>[] = [];
+
+      // 📨 Main booking email (always)
+      sends.push(sendMailSafe(mainTransporter, mailOptions));
+
+      // 📩 Compare email (only if needed)
       if (isCompareSite) {
         sends.push(
-          transporter.sendMail({
+          sendMailSafe(mainTransporter, {
             from: `"${senderName}" <${senderEmail}>`,
             to: "Compareheathrowparking@gmail.com",
             subject: `Booking Confirmed - ${booking.trackingNumber} | ${subjectSuffix}`,
@@ -1066,17 +1097,20 @@ class EmailService {
           }),
         );
       }
-      const [info, compare] = await Promise.all(sends);
-      if (!isConfigured) {
-        console.log(
-          "📧 Email (dev mode):",
-          JSON.parse((info as any).message).subject,
-        );
-      } else {
-        console.log("📧 Email sent:", (info as any).messageId);
-        if (compare)
-          console.log("📧 Compare email sent:", (compare as any).messageId);
-      }
+
+      // ⚡ Don't fail everything if one email fails
+      const results = await Promise.allSettled(sends);
+
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          console.log("📧 Email sent:", (result.value as any)?.messageId);
+        } else {
+          console.error(
+            `❌ Email ${index === 0 ? "main" : "compare"} failed:`,
+            result.reason,
+          );
+        }
+      });
     } catch (error) {
       console.error("❌ Email send failed:", error);
       // Don't throw — email failure shouldn't break the booking
@@ -1276,7 +1310,10 @@ class EmailService {
         subject: `Reset your ${cfg.brandName} admin password`,
         html,
       });
-      console.log("📧 Password reset email sent:", (info as any).messageId ?? "dev");
+      console.log(
+        "📧 Password reset email sent:",
+        (info as any).messageId ?? "dev",
+      );
     } catch (error) {
       console.error("❌ Password reset email failed:", error);
       throw error;
@@ -1284,4 +1321,26 @@ class EmailService {
   }
 }
 
+async function sendMailSafe(transporter: any, mailOptions: any) {
+  let lastError;
+
+  for (let i = 0; i < 3; i++) {
+    try {
+      return await transporter.sendMail(mailOptions);
+    } catch (err: any) {
+      lastError = err;
+
+      // Only retry network/TLS issues
+      if (!["ESOCKET", "ETIMEDOUT", "ECONNECTION"].includes(err.code)) {
+        throw err;
+      }
+
+      console.warn(`📡 Email retry ${i + 1} failed:`, err.code);
+
+      await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+
+  throw lastError;
+}
 export const emailService = new EmailService();

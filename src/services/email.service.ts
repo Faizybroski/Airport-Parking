@@ -590,7 +590,7 @@ class EmailService {
                 <div class="alert-box">
                   <div class="alert-content">
                     <strong>Action Required Before Arrival</strong>
-                    <p>Please contact our team on +44 7903 835808 at least 30 minutes prior to your arrival at the airport, so we can coordinate your booking and provide a smooth, timely service.</p>
+                    <p>Please contact our team on 07927 970960 at least 30 minutes prior to your arrival at the airport, so we can coordinate your booking and provide a smooth, timely service.</p>
                   </div>
                 </div>
 

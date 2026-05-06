@@ -83,13 +83,13 @@ const businessEmailConfigs: Record<string, BusinessEmailConfig> = {
       process.env.PARKEASE_CONTACT_EMAIL || "parkeaseparking@gmail.com",
     brandName: "ParkEase",
     frontendUrl:
-      process.env.PARKEASE_FRONTEND_URL || "https://park-ease-eta.vercel.app",
-    logoUrl: "https://park-ease-eta.vercel.app/logo.svg",
+      process.env.PARKEASE_FRONTEND_URL || "https://parkease.uk",
+    logoUrl: "https://parkease.uk/logo.svg",
     showBrandName: false,
     primaryColor: "#216269",
     primaryBgColor: "#39a9b5",
     termsPdfPath:
-      "https://park-ease-eta.vercel.app/TERMS-AND-CONDITIONS-PARKEASE-PARKING-LIMITED.pdf",
+      "https://parkease.uk/TERMS-AND-CONDITIONS-PARKEASE-PARKING-LIMITED.pdf",
   },
   [PARKPRO_BUSINESS_ID]: {
     smtpHost: process.env.PARKPRO_SMTP_HOST || "premium334.web-hosting.com",

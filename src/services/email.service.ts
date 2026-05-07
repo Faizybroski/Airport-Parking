@@ -9,6 +9,7 @@ import {
   getCompareEmailConfig,
   getAllBusinessEmailConfigs,
   COMPARE_SITE_NAME,
+  PARKEASE_BUSINESS_ID,
 } from "../config";
 import { createTransporter } from "../config/transporter";
 import {
@@ -93,7 +94,7 @@ class EmailService {
     const cfg = getBusinessEmailConfig(businessId);
     // When booked via the compare site, use compare SMTP credentials.
     const isCompareSite = booking.bookedVia === "heathrowcompare";
-    const isParkEase = businessId === "69e0c88358667024ac151f2e";
+    const isParkEase = businessId === PARKEASE_BUSINESS_ID;
     const smtpCfg = isCompareSite ? getCompareEmailConfig() : cfg;
     // const transporter = createTransporter(smtpCfg, "booking");
     const isConfigured = !!(smtpCfg.bookingSmtpUser && smtpCfg.bookingSmtpPass);
@@ -831,45 +832,46 @@ class EmailService {
     try {
       const mainTransporter = createTransporter(smtpCfg, "booking");
 
-      const sends: Promise<any>[] = [];
+      const sends: { label: string; task: Promise<any> }[] = [];
 
       // 📨 Main booking email (always)
-      sends.push(sendMailSafe(mainTransporter, mailOptions));
+      sends.push({ label: "customer", task: sendMailSafe(mainTransporter, mailOptions) });
 
-      // 📩 Compare email (only if needed)
+      // 📩 Compare internal copy
       if (isCompareSite) {
-        sends.push(
-          sendMailSafe(mainTransporter, {
+        sends.push({
+          label: "compare-internal",
+          task: sendMailSafe(mainTransporter, {
             from: `"${senderName}" <${senderEmail}>`,
             to: "Compareheathrowparking@gmail.com",
             subject: `Booking Confirmed - ${booking.trackingNumber} | ${subjectSuffix}`,
             html: compareHTML,
           }),
-        );
+        });
       }
 
+      // 🚗 ParkEase internal notification copy
       if (isParkEase) {
-        // 🚗 ParkEase internal notification email (only for ParkEase)
-        sends.push(
-          sendMailSafe(mainTransporter, {
+        sends.push({
+          label: "parkease-internal",
+          task: sendMailSafe(mainTransporter, {
             from: `"${senderName}" <${senderEmail}>`,
             to: "parkeaseparking@gmail.com",
             subject: `Booking Confirmed - ${booking.trackingNumber} | ${subjectSuffix}`,
             html,
           }),
-        );
+        });
       }
+
       // ⚡ Don't fail everything if one email fails
-      const results = await Promise.allSettled(sends);
+      const results = await Promise.allSettled(sends.map((s) => s.task));
 
       results.forEach((result, index) => {
+        const label = sends[index].label;
         if (result.status === "fulfilled") {
-          console.log("📧 Email sent:", (result.value as any)?.messageId);
+          console.log(`📧 Email [${label}] sent:`, (result.value as any)?.messageId);
         } else {
-          console.error(
-            `❌ Email ${index === 0 ? "main" : "compare"} failed:`,
-            result.reason,
-          );
+          console.error(`❌ Email [${label}] failed:`, result.reason);
         }
       });
     } catch (error) {

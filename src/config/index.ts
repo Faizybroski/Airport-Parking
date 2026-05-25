@@ -165,7 +165,7 @@ export const config = {
   /** Comma-separated list of allowed CORS origins. */
   frontendUrls: (
     process.env.FRONTEND_URL ||
-    "http://localhost:3000,http://localhost:3002,https://compareheathrowparking.uk,https://www.compareheathrowparking.com,https://parkpro.uk,https://www.parkpro.uk,https://park-ease-eta.vercel.app,https://heathrowsafeparking.com,https://www.heathrowsafeparking.com"
+    "http://localhost:3000,http://localhost:3002,https://compareheathrowparking.uk,https://www.compareheathrowparking.com,https://parkpro.uk,https://www.parkpro.uk,https://parkease.uk,https://www.parkease.uk,https://heathrowsafeparking.com,https://www.heathrowsafeparking.com"
   )
     .split(",")
     .map((u) => u.trim())
